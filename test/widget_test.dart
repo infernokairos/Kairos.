@@ -71,6 +71,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Unit Test Instant Task'), findsOneWidget);
+
+      // Verify Theme toggle button and toggle theme
+      final themeBtn = find.byKey(const ValueKey('theme_toggle_btn'));
+      expect(themeBtn, findsOneWidget);
+      await tester.tap(themeBtn);
+      await tester.pumpAndSettle();
+
+      // Tap again to switch back
+      await tester.tap(themeBtn);
+      await tester.pumpAndSettle();
     });
   });
 }

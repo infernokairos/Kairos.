@@ -175,4 +175,24 @@ class TaskStorage {
     await saveToLocalStorage(data.tasks, data.activeThreshold);
     return data;
   }
+
+  static const String _themeKey = 'kairos_theme_mode';
+
+  /// Saves the user selected ThemeMode
+  static Future<void> saveThemeMode(bool isDark) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_themeKey, isDark ? 'dark' : 'light');
+    } catch (_) {}
+  }
+
+  /// Loads the persisted ThemeMode (defaults to dark)
+  static Future<bool> loadIsDarkTheme() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final mode = prefs.getString(_themeKey);
+      if (mode == 'light') return false;
+    } catch (_) {}
+    return true;
+  }
 }
