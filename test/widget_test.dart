@@ -1,79 +1,76 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:task_planner/main.dart';
 
 void main() {
-  testWidgets('App renders Tier-Loops with S/A/B tabs and active threshold',
-      (WidgetTester tester) async {
-    // Build app
-    await tester.pumpWidget(const TaskPlannerApp());
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
 
-    // Verify header and panels
-    expect(find.byType(Material3ExpressiveAppBar), findsOneWidget);
-    expect(find.byType(LeftPanelWidget), findsOneWidget);
-    expect(find.byType(RightPanelWidget), findsOneWidget);
+  group('TaskPlanner JSON Storage & Unit Tests', () {
+    test('TaskStorage serialize and deserialize maintains tier loops and independent rankings', () {
+      final tasks = {
+        TierCategory.s: [
+          TierTask(id: 's1', title: 'Task S1', tier: TierCategory.s, rank: 1),
+          TierTask(id: 's2', title: 'Task S2', tier: TierCategory.s, rank: 2),
+        ],
+        TierCategory.a: [
+          TierTask(id: 'a1', title: 'Task A1', tier: TierCategory.a, rank: 1),
+        ],
+        TierCategory.b: [
+          TierTask(id: 'b1', title: 'Task B1', tier: TierCategory.b, rank: 1),
+          TierTask(id: 'b2', title: 'Task B2', tier: TierCategory.b, rank: 2),
+        ],
+      };
 
-    // Verify S, A, B tabs
-    expect(find.text('S Tier'), findsOneWidget);
-    expect(find.text('A Tier'), findsOneWidget);
-    expect(find.text('B Tier'), findsOneWidget);
+      final jsonStr = TaskStorage.serialize(tasks, 3);
+      expect(jsonStr, contains('"activeThreshold": 3'));
+      expect(jsonStr, contains('"Task S1"'));
 
-    // Verify View All Tiers icon button is present
-    expect(find.byIcon(Icons.view_agenda_rounded), findsOneWidget);
+      final parsed = TaskStorage.deserialize(jsonStr);
+      expect(parsed.activeThreshold, 3);
+      expect(parsed.tasks[TierCategory.s]?.length, 2);
+      expect(parsed.tasks[TierCategory.s]?[0].title, 'Task S1');
+      expect(parsed.tasks[TierCategory.s]?[0].rank, 1);
+      expect(parsed.tasks[TierCategory.s]?[1].rank, 2);
+      expect(parsed.tasks[TierCategory.a]?[0].rank, 1);
+      expect(parsed.tasks[TierCategory.b]?[0].rank, 1);
+      expect(parsed.tasks[TierCategory.b]?[1].rank, 2);
+    });
+  });
 
-    // Verify threshold controller
-    expect(find.text('Active Threshold:'), findsOneWidget);
-    expect(find.text('Top-5'), findsOneWidget);
+  group('Widget Tests', () {
+    testWidgets('App renders UI, tier tabs, Import/Export buttons, and active threshold', (tester) async {
+      await tester.pumpWidget(const TaskPlannerApp());
+      await tester.pumpAndSettle();
 
-    // Helper finder for LeftPanelWidget tasks
-    Finder findInLeftPanel(String text) {
-      return find.descendant(
-        of: find.byType(LeftPanelWidget),
-        matching: find.text(text),
-      );
-    }
+      // Verify title
+      expect(find.text('Task Planner'), findsOneWidget);
 
-    // Verify numbered active task in LeftPanelWidget S tier
-    expect(find.text('#1 ACTIVE'), findsOneWidget);
-    expect(
-      findInLeftPanel('Deploy Production Security Patch'),
-      findsOneWidget,
-    );
+      // Verify Import & Export buttons
+      expect(find.byKey(const ValueKey('import_json_btn')), findsOneWidget);
+      expect(find.byKey(const ValueKey('export_json_btn')), findsOneWidget);
 
-    // Switch to A Tier tab
-    await tester.tap(find.text('A Tier'));
-    await tester.pumpAndSettle();
+      // Verify Tier tabs
+      expect(find.text('S Tier'), findsWidgets);
+      expect(find.text('A Tier'), findsWidgets);
+      expect(find.text('B Tier'), findsWidgets);
 
-    // Verify A Tier tasks are visible and numbered in LeftPanelWidget
-    expect(
-      findInLeftPanel('Tier-Loop Active Threshold Engine'),
-      findsOneWidget,
-    );
+      // Verify active threshold stepper
+      expect(find.textContaining('Active Threshold: Top'), findsOneWidget);
 
-    // Switch to B Tier tab
-    await tester.tap(find.text('B Tier'));
-    await tester.pumpAndSettle();
+      // Verify Quick Add input and button
+      expect(find.text('Add'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
 
-    // Verify B Tier tasks are visible and numbered in LeftPanelWidget
-    expect(
-      findInLeftPanel('Automated CI/CD Pipeline Artifacts'),
-      findsOneWidget,
-    );
+      // Test adding a task to current tier
+      await tester.enterText(find.byType(TextField), 'Unit Test Instant Task');
+      await tester.tap(find.text('Add'));
+      await tester.pumpAndSettle();
 
-    // Click View All Tiers icon
-    await tester.tap(find.byIcon(Icons.view_agenda_rounded));
-    await tester.pumpAndSettle();
-
-    // In All Tiers view, top S tier task is visible
-    expect(
-      findInLeftPanel('Deploy Production Security Patch'),
-      findsOneWidget,
-    );
-
-    // Increase threshold
-    await tester.tap(find.byIcon(Icons.add_rounded));
-    await tester.pumpAndSettle();
-    expect(find.text('Top-6'), findsOneWidget);
+      expect(find.text('Unit Test Instant Task'), findsOneWidget);
+    });
   });
 }

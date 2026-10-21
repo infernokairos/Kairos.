@@ -1,0 +1,65 @@
+{
+  "activeThreshold": 2,
+  "tasks": {
+    "s": [
+      {
+        "id": "s1",
+        "title": "Critical Server Hotfix",
+        "rank": 1,
+        "isCompleted": false
+      },
+      {
+        "id": "s2",
+        "title": "Payment Gateway Integration",
+        "rank": 2,
+        "isCompleted": false
+      },
+      {
+        "id": "s3",
+        "title": "Client Product Launch",
+        "rank": 3,
+        "isCompleted": false
+      }
+    ],
+    "a": [
+      {
+        "id": "a1",
+        "title": "Responsive UI Polish",
+        "rank": 1,
+        "isCompleted": false
+      },
+      {
+        "id": "a2",
+        "title": "Database Indexing",
+        "rank": 2,
+        "isCompleted": false
+      },
+      {
+        "id": "a3",
+        "title": "User Onboarding Flow",
+        "rank": 3,
+        "isCompleted": false
+      }
+    ],
+    "b": [
+      {
+        "id": "b1",
+        "title": "Clean Legacy Helper Code",
+        "rank": 1,
+        "isCompleted": false
+      },
+      {
+        "id": "b2",
+        "title": "Update Readme Documentation",
+        "rank": 2,
+        "isCompleted": false
+      },
+      {
+        "id": "b3",
+        "title": "Color Contrast Audit",
+        "rank": 3,
+        "isCompleted": false
+      }
+    ]
+  }
+}
