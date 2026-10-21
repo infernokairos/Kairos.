@@ -1,10 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/tier_task.dart';
+import 'file_helper.dart';
 
 class TaskStorageData {
   final Map<TierCategory, List<TierTask>> tasks;
@@ -143,34 +142,15 @@ class TaskStorage {
     int activeThreshold,
   ) async {
     final jsonStr = serialize(tasksByTier, activeThreshold);
-    final bytes = Uint8List.fromList(utf8.encode(jsonStr));
-
-    final result = await FilePicker.saveFile(
-      dialogTitle: 'Export Tasks JSON',
-      fileName: 'tasks.json',
-      bytes: bytes,
-      mimeType: 'application/json',
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
-
-    return result != null;
+    return await PlatformFileHelper.downloadJson('tasks.json', jsonStr);
   }
 
   /// Imports tasks from a user-selected JSON file
   static Future<TaskStorageData?> importJson() async {
-    final result = await FilePicker.pickFiles(
-      dialogTitle: 'Import Tasks JSON',
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
+    final content = await PlatformFileHelper.pickJson();
+    if (content == null || content.trim().isEmpty) return null;
 
-    if (result.isEmpty) return null;
-
-    final file = result.first;
-    final content = await file.xFile.readAsString();
     final data = deserialize(content);
-
     // Save imported data to local storage immediately
     await saveToLocalStorage(data.tasks, data.activeThreshold);
     return data;
