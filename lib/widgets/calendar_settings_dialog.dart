@@ -129,31 +129,40 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
   }
 
   Widget _buildRatioField({
-    required String label,
-    required Color color,
+    required String letter,
+    required Color badgeColor,
     required TextEditingController controller,
     required ValueChanged<String> onChanged,
   }) {
+    final theme = Theme.of(context);
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(8),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: color.withValues(alpha: 0.25),
-            width: 1.0,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
           ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: color,
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: badgeColor,
+                borderRadius: BorderRadius.circular(5),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                letter,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
             const SizedBox(width: 6),
@@ -163,15 +172,14 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                 controller: controller,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: color,
                 ),
                 decoration: const InputDecoration(
                   isDense: true,
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 4),
+                  contentPadding: EdgeInsets.zero,
                 ),
                 onChanged: onChanged,
               ),
@@ -179,54 +187,12 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
             Text(
               '%',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: color.withValues(alpha: 0.7),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPresetPill(String label, int s, int a, int b) {
-    final isSelected = _targetS == s && _targetA == a && _targetB == b;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _targetS = s;
-          _targetA = a;
-          _targetB = b;
-          _sController.text = '$s';
-          _aController.text = '$a';
-          _bController.text = '$b';
-        });
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? Theme.of(context).colorScheme.primaryContainer
-              : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
-            width: 0.8,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected
-                ? Theme.of(context).colorScheme.onPrimaryContainer
-                : Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
         ),
       ),
     );
@@ -262,7 +228,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Time Format (Clean, no checkmark)
+              // 1. Time Format (Clean, full-width segmented pill)
               const Text(
                 'Time Format',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
@@ -270,7 +236,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
               const SizedBox(height: 6),
               SizedBox(
                 width: double.infinity,
-                height: 38,
+                height: 36,
                 child: SegmentedButton<bool>(
                   showSelectedIcon: false,
                   style: SegmentedButton.styleFrom(
@@ -280,11 +246,11 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                   segments: const [
                     ButtonSegment<bool>(
                       value: false,
-                      label: Text('12-Hour (AM/PM)', style: TextStyle(fontSize: 12)),
+                      label: Text('12-Hour (AM/PM)', style: TextStyle(fontSize: 11.5)),
                     ),
                     ButtonSegment<bool>(
                       value: true,
-                      label: Text('24-Hour', style: TextStyle(fontSize: 12)),
+                      label: Text('24-Hour', style: TextStyle(fontSize: 11.5)),
                     ),
                   ],
                   selected: {_is24Hour},
@@ -293,9 +259,9 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                   },
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
 
-              // 2. Loop Target Percentages (Clean unified card with presets)
+              // 2. Loop Target Percentages (Zero repetition, clean unified inputs)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -308,7 +274,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isTotalValid ? 'Total: 100%' : 'Total: $targetsTotal% (must be 100%)',
+                    isTotalValid ? 'Total: 100%' : 'Total: $targetsTotal% (needs 100%)',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -319,64 +285,40 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              // Quick presets
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
+              const SizedBox(height: 8),
+              Row(
                 children: [
-                  _buildPresetPill('60 / 25 / 15', 60, 25, 15),
-                  _buildPresetPill('70 / 20 / 10', 70, 20, 10),
-                  _buildPresetPill('50 / 30 / 20', 50, 30, 20),
+                  _buildRatioField(
+                    letter: 'S',
+                    badgeColor: const Color(0xFF1976D2),
+                    controller: _sController,
+                    onChanged: (v) {
+                      setState(() => _targetS = int.tryParse(v.trim()) ?? 0);
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  _buildRatioField(
+                    letter: 'A',
+                    badgeColor: const Color(0xFF2E7D32),
+                    controller: _aController,
+                    onChanged: (v) {
+                      setState(() => _targetA = int.tryParse(v.trim()) ?? 0);
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  _buildRatioField(
+                    letter: 'B',
+                    badgeColor: const Color(0xFFD97706),
+                    controller: _bController,
+                    onChanged: (v) {
+                      setState(() => _targetB = int.tryParse(v.trim()) ?? 0);
+                    },
+                  ),
                 ],
               ),
-              const SizedBox(height: 8),
-              // 3 clean ratio inputs in a unified container
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isTotalValid
-                        ? theme.colorScheme.outlineVariant.withValues(alpha: 0.3)
-                        : theme.colorScheme.error,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    _buildRatioField(
-                      label: 'S',
-                      color: const Color(0xFF1976D2),
-                      controller: _sController,
-                      onChanged: (v) {
-                        setState(() => _targetS = int.tryParse(v.trim()) ?? 0);
-                      },
-                    ),
-                    const SizedBox(width: 6),
-                    _buildRatioField(
-                      label: 'A',
-                      color: const Color(0xFF2E7D32),
-                      controller: _aController,
-                      onChanged: (v) {
-                        setState(() => _targetA = int.tryParse(v.trim()) ?? 0);
-                      },
-                    ),
-                    const SizedBox(width: 6),
-                    _buildRatioField(
-                      label: 'B',
-                      color: const Color(0xFFD97706),
-                      controller: _bController,
-                      onChanged: (v) {
-                        setState(() => _targetB = int.tryParse(v.trim()) ?? 0);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
 
-              // 3. Sleep & Focus Hours (Zero-bloat unified card)
+              // 3. Sleep & Focus Hours (Zero bloat, zero repetition)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -398,14 +340,14 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
                   ),
                 ),
                 child: Column(
@@ -430,7 +372,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                       ],
                     ),
                     if (_isFocusEnabled) ...[
-                      Divider(height: 8, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                      Divider(height: 12, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
                       const SizedBox(height: 2),
                       Row(
                         children: [
@@ -442,8 +384,8 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.nightlight_outlined, size: 15, color: theme.colorScheme.primary),
-                                    const SizedBox(width: 6),
+                                    Icon(Icons.nightlight_outlined, size: 16, color: theme.colorScheme.primary),
+                                    const SizedBox(width: 8),
                                     Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
@@ -456,7 +398,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                                         ),
                                         Text(
                                           bedtimeDisplay,
-                                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                                         ),
                                       ],
                                     ),
@@ -467,8 +409,8 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                           ),
                           Container(
                             width: 1,
-                            height: 24,
-                            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                            height: 26,
+                            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
                           ),
                           Expanded(
                             child: InkWell(
@@ -478,8 +420,8 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.wb_sunny_outlined, size: 15, color: const Color(0xFFD97706)),
-                                    const SizedBox(width: 6),
+                                    const Icon(Icons.wb_sunny_outlined, size: 16, color: Color(0xFFD97706)),
+                                    const SizedBox(width: 8),
                                     Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
@@ -492,7 +434,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                                         ),
                                         Text(
                                           wakeDisplay,
-                                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                                         ),
                                       ],
                                     ),
