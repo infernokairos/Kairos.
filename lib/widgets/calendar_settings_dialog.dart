@@ -128,6 +128,110 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
     }
   }
 
+  Widget _buildRatioField({
+    required String label,
+    required Color color,
+    required TextEditingController controller,
+    required ValueChanged<String> onChanged,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: color.withValues(alpha: 0.25),
+            width: 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+            const SizedBox(width: 6),
+            SizedBox(
+              width: 32,
+              child: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 4),
+                ),
+                onChanged: onChanged,
+              ),
+            ),
+            Text(
+              '%',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresetPill(String label, int s, int a, int b) {
+    final isSelected = _targetS == s && _targetA == a && _targetB == b;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _targetS = s;
+          _targetA = a;
+          _targetB = b;
+          _sController.text = '$s';
+          _aController.text = '$a';
+          _bController.text = '$b';
+        });
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+            width: 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected
+                ? Theme.of(context).colorScheme.onPrimaryContainer
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -152,50 +256,59 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
         ],
       ),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
+        constraints: const BoxConstraints(maxWidth: 380),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Time Format
+              // 1. Time Format (Clean, no checkmark)
               const Text(
                 'Time Format',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 6),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment<bool>(
-                    value: false,
-                    label: Text('12-Hour (AM/PM)'),
+              SizedBox(
+                width: double.infinity,
+                height: 38,
+                child: SegmentedButton<bool>(
+                  showSelectedIcon: false,
+                  style: SegmentedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                   ),
-                  ButtonSegment<bool>(
-                    value: true,
-                    label: Text('24-Hour'),
-                  ),
-                ],
-                selected: {_is24Hour},
-                onSelectionChanged: (newSel) {
-                  setState(() => _is24Hour = newSel.first);
-                },
+                  segments: const [
+                    ButtonSegment<bool>(
+                      value: false,
+                      label: Text('12-Hour (AM/PM)', style: TextStyle(fontSize: 12)),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      label: Text('24-Hour', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                  selected: {_is24Hour},
+                  onSelectionChanged: (newSel) {
+                    setState(() => _is24Hour = newSel.first);
+                  },
+                ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
 
-              // 2. Loop Target Percentages
+              // 2. Loop Target Percentages (Clean unified card with presets)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Flexible(
+                  const Flexible(
                     child: Text(
                       'Loop Target Ratios',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Total: $targetsTotal%',
+                    isTotalValid ? 'Total: 100%' : 'Total: $targetsTotal% (must be 100%)',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -207,79 +320,70 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                 ],
               ),
               const SizedBox(height: 6),
-              Row(
+              // Quick presets
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _sController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'S-Tier %',
-                        labelStyle: TextStyle(color: Color(0xFF1976D2), fontWeight: FontWeight.bold),
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                        suffixText: '%',
-                      ),
-                      onChanged: (v) {
-                        setState(() {
-                          _targetS = int.tryParse(v.trim()) ?? 0;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _aController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'A-Tier %',
-                        labelStyle: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                        suffixText: '%',
-                      ),
-                      onChanged: (v) {
-                        setState(() {
-                          _targetA = int.tryParse(v.trim()) ?? 0;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _bController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'B-Tier %',
-                        labelStyle: TextStyle(color: Color(0xFFD97706), fontWeight: FontWeight.bold),
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                        suffixText: '%',
-                      ),
-                      onChanged: (v) {
-                        setState(() {
-                          _targetB = int.tryParse(v.trim()) ?? 0;
-                        });
-                      },
-                    ),
-                  ),
+                  _buildPresetPill('60 / 25 / 15', 60, 25, 15),
+                  _buildPresetPill('70 / 20 / 10', 70, 20, 10),
+                  _buildPresetPill('50 / 30 / 20', 50, 30, 20),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 8),
+              // 3 clean ratio inputs in a unified container
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isTotalValid
+                        ? theme.colorScheme.outlineVariant.withValues(alpha: 0.3)
+                        : theme.colorScheme.error,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    _buildRatioField(
+                      label: 'S',
+                      color: const Color(0xFF1976D2),
+                      controller: _sController,
+                      onChanged: (v) {
+                        setState(() => _targetS = int.tryParse(v.trim()) ?? 0);
+                      },
+                    ),
+                    const SizedBox(width: 6),
+                    _buildRatioField(
+                      label: 'A',
+                      color: const Color(0xFF2E7D32),
+                      controller: _aController,
+                      onChanged: (v) {
+                        setState(() => _targetA = int.tryParse(v.trim()) ?? 0);
+                      },
+                    ),
+                    const SizedBox(width: 6),
+                    _buildRatioField(
+                      label: 'B',
+                      color: const Color(0xFFD97706),
+                      controller: _bController,
+                      onChanged: (v) {
+                        setState(() => _targetB = int.tryParse(v.trim()) ?? 0);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
 
-              // 3. Sleep Schedule & Focus
+              // 3. Sleep & Focus Hours (Zero-bloat unified card)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Flexible(
+                  const Flexible(
                     child: Text(
                       'Focus & Sleep Hours',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -295,45 +399,113 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                 ],
               ),
               const SizedBox(height: 6),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                title: const Text('Focus mode (hide sleeping hours)'),
-                subtitle: const Text('Cuts out empty midnight hours to shorten scroll'),
-                value: _isFocusEnabled,
-                onChanged: (val) => setState(() => _isFocusEnabled = val),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.nightlight_outlined, size: 15),
-                      label: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('Bed: $bedtimeDisplay', style: const TextStyle(fontSize: 11.5)),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                      ),
-                      onPressed: () => _pickTime(isBedtime: true),
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.wb_sunny_outlined, size: 15),
-                      label: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('Wake: $wakeDisplay', style: const TextStyle(fontSize: 11.5)),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                      ),
-                      onPressed: () => _pickTime(isBedtime: false),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Focus mode (hide sleeping hours)',
+                            style: TextStyle(fontSize: 12.5),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Transform.scale(
+                          scale: 0.85,
+                          child: Switch(
+                            value: _isFocusEnabled,
+                            onChanged: (val) => setState(() => _isFocusEnabled = val),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    if (_isFocusEnabled) ...[
+                      Divider(height: 8, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _pickTime(isBedtime: true),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.nightlight_outlined, size: 15, color: theme.colorScheme.primary),
+                                    const SizedBox(width: 6),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Bedtime',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: theme.colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        Text(
+                                          bedtimeDisplay,
+                                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 24,
+                            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                          ),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _pickTime(isBedtime: false),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.wb_sunny_outlined, size: 15, color: const Color(0xFFD97706)),
+                                    const SizedBox(width: 6),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Wake up',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: theme.colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        Text(
+                                          wakeDisplay,
+                                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),

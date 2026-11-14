@@ -863,11 +863,12 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
           // Top Row: Total hours + Target summary
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(
                     '${totalHoursStr}h',
@@ -878,7 +879,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                       letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   Text(
                     'total',
                     style: TextStyle(
@@ -891,25 +892,34 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
               ),
               InkWell(
                 onTap: _showSettingsDialog,
-                borderRadius: BorderRadius.circular(4),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      width: 0.8,
+                    ),
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
                         'Target: ${_weekTargets.sPct}% S • ${_weekTargets.aPct}% A • ${_weekTargets.bPct}% B',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w500,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 5),
                       Icon(
                         Icons.tune,
-                        size: 12,
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        size: 13,
+                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                       ),
                     ],
                   ),
@@ -917,7 +927,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
 
           // Thin Material 3 multi-color progress track
           ClipRRect(
@@ -952,13 +962,14 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                     ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
 
-          // Bottom Row: Clean, simple percentage pills
+          // Bottom Row: Clean, simple percentage pills grouped naturally on left
           Wrap(
-            spacing: 12,
+            spacing: 20,
             runSpacing: 4,
-            alignment: WrapAlignment.spaceBetween,
+            alignment: WrapAlignment.start,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               _buildTierStatItem('S', const Color(0xFF1976D2), sMin, sPct),
               _buildTierStatItem('A', const Color(0xFF2E7D32), aMin, aPct),
@@ -976,20 +987,21 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
     final hours = (minutes / 60.0).toStringAsFixed(1);
     return Row(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 6,
-          height: 6,
+          width: 7,
+          height: 7,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 5),
         Text(
           '$label: ${hours}h ($pct%)',
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 11.5,
             fontWeight: FontWeight.w600,
             color: color,
           ),
@@ -1243,23 +1255,12 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  _dayNames[day] ?? '',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Icon(
-                  Icons.copy_outlined,
-                  size: 11,
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                ),
-              ],
+            Text(
+              _dayNames[day] ?? '',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
