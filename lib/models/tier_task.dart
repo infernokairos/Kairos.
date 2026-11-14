@@ -27,7 +27,9 @@ class TierTask {
   TierCategory tier;
   int rank; // Independent rank 1..N within tier
   bool isCompleted;
-  Set<String> completedDates; // "yyyy-MM-dd" dates marked Done
+  int totalSittings; // Total dedicated sittings target (0 = unset)
+  bool isArchived;
+  Set<String> completedDates; // "yyyy-MM-dd" dates marked Done (1 sitting per day)
 
   TierTask({
     required this.id,
@@ -35,8 +37,12 @@ class TierTask {
     required this.tier,
     required this.rank,
     this.isCompleted = false,
+    this.totalSittings = 0,
+    this.isArchived = false,
     Set<String>? completedDates,
   }) : completedDates = completedDates ?? {};
+
+  int get currentSittings => completedDates.length;
 
   static String dateKey(DateTime d) {
     final y = d.year.toString().padLeft(4, '0');
@@ -52,6 +58,8 @@ class TierTask {
       'title': title,
       'rank': rank,
       'isCompleted': isCompleted,
+      if (totalSittings > 0) 'totalSittings': totalSittings,
+      if (isArchived) 'isArchived': true,
       if (sortedDates.isNotEmpty) 'completedDates': sortedDates,
     };
   }
@@ -82,6 +90,8 @@ class TierTask {
     }
 
     final dynamic rankVal = json['rank'];
+    final dynamic totalSittingsVal = json['totalSittings'];
+    final dynamic isArchivedVal = json['isArchived'];
 
     return TierTask(
       id: json['id'] as String? ??
@@ -90,6 +100,8 @@ class TierTask {
       tier: defaultTier,
       rank: rankVal is num ? rankVal.toInt() : fallbackRank,
       isCompleted: json['isCompleted'] as bool? ?? false,
+      totalSittings: totalSittingsVal is num ? totalSittingsVal.toInt() : 0,
+      isArchived: isArchivedVal is bool ? isArchivedVal : false,
       completedDates: dates,
     );
   }

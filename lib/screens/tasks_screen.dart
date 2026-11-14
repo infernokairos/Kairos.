@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/tier_task.dart';
 import '../services/task_storage.dart';
+import '../widgets/archive_sheet.dart';
 import '../widgets/habit_details_dialog.dart';
 import '../widgets/task_tile.dart';
 import '../widgets/threshold_sheet.dart';
@@ -100,15 +101,17 @@ class _TasksScreenState extends State<TasksScreen>
 
   // --- Actions ---
 
-  void _addTask(String title, TierCategory tier) {
+  void _addTask(String title, TierCategory tier, [int totalSittings = 0]) {
     if (title.trim().isEmpty) return;
     setState(() {
       final list = _tasksByTier[tier]!;
+      final activeCount = list.where((t) => !t.isArchived).length;
       list.add(TierTask(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         title: title.trim(),
         tier: tier,
-        rank: list.length + 1,
+        rank: activeCount + 1,
+        totalSittings: totalSittings,
       ));
       _saveState();
     });
@@ -116,6 +119,7 @@ class _TasksScreenState extends State<TasksScreen>
 
   void _showAddTaskDialog() {
     final titleController = TextEditingController();
+    final sittingsController = TextEditingController();
     TierCategory selectedTier = _currentSelectedTier;
 
     showDialog(
@@ -144,10 +148,26 @@ class _TasksScreenState extends State<TasksScreen>
                   onSubmitted: (val) {
                     final text = val.trim();
                     if (text.isNotEmpty) {
-                      _addTask(text, selectedTier);
+                      final target =
+                          int.tryParse(sittingsController.text.trim()) ?? 0;
+                      _addTask(text, selectedTier, target);
                     }
                     Navigator.pop(context);
                   },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: sittingsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Total Sittings (optional)',
+                    hintText: 'e.g. 20',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 // Tier selector
@@ -183,7 +203,9 @@ class _TasksScreenState extends State<TasksScreen>
               onPressed: () {
                 final text = titleController.text.trim();
                 if (text.isNotEmpty) {
-                  _addTask(text, selectedTier);
+                  final target =
+                      int.tryParse(sittingsController.text.trim()) ?? 0;
+                  _addTask(text, selectedTier, target);
                 }
                 Navigator.pop(context);
               },
@@ -200,8 +222,11 @@ class _TasksScreenState extends State<TasksScreen>
       context: context,
       task: task,
       onUpdate: () {
-        setState(() {});
-        _saveState();
+        setState(() {
+          if (!_checkAndArchiveIfGoalReached(task)) {
+            _saveState();
+          }
+        });
       },
     );
   }
@@ -227,13 +252,39 @@ class _TasksScreenState extends State<TasksScreen>
     }
   }
 
+  void _reindexTierRanks(TierCategory tier) {
+    final active = (_tasksByTier[tier] ?? []).where((t) => !t.isArchived).toList();
+    for (int i = 0; i < active.length; i++) {
+      active[i].rank = i + 1;
+    }
+  }
+
+  bool _checkAndArchiveIfGoalReached(TierTask task) {
+    if (task.totalSittings > 0 &&
+        task.currentSittings >= task.totalSittings &&
+        !task.isArchived) {
+      task.isArchived = true;
+      _reindexTierRanks(task.tier);
+      _saveState();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${task.title}" completed all sittings and moved to Archive.'),
+          action: SnackBarAction(
+            label: 'View',
+            onPressed: _showArchiveSheet,
+          ),
+        ),
+      );
+      return true;
+    }
+    return false;
+  }
+
   void _deleteTask(TierTask task) {
     setState(() {
       final list = _tasksByTier[task.tier]!;
       list.remove(task);
-      for (int i = 0; i < list.length; i++) {
-        list[i].rank = i + 1;
-      }
+      _reindexTierRanks(task.tier);
       _saveState();
     });
   }
@@ -248,7 +299,7 @@ class _TasksScreenState extends State<TasksScreen>
   void _completeLoopTask(TierTask task) {
     final threshold = _thresholdFor(task.tier);
     final activeTasks = (_tasksByTier[task.tier] ?? [])
-        .where((t) => t.rank <= threshold)
+        .where((t) => !t.isArchived && t.rank <= threshold)
         .toList();
 
     TierTask? firstPending;
@@ -264,18 +315,26 @@ class _TasksScreenState extends State<TasksScreen>
       final todayKey = TierTask.dateKey(DateTime.now());
       task.isCompleted = true;
       task.completedDates.add(todayKey);
-      _saveState();
+      if (!_checkAndArchiveIfGoalReached(task)) {
+        _saveState();
+      }
     });
   }
 
   void _reorderTier(TierCategory tier, int oldIndex, int newIndex) {
     setState(() {
       final list = _tasksByTier[tier]!;
-      final item = list.removeAt(oldIndex);
-      list.insert(newIndex, item);
-      for (int i = 0; i < list.length; i++) {
-        list[i].rank = i + 1;
+      final active = list.where((t) => !t.isArchived).toList();
+      final archived = list.where((t) => t.isArchived).toList();
+      if (oldIndex < newIndex) {
+        newIndex -= 1;
       }
+      final item = active.removeAt(oldIndex);
+      active.insert(newIndex, item);
+      for (int i = 0; i < active.length; i++) {
+        active[i].rank = i + 1;
+      }
+      _tasksByTier[tier] = [...active, ...archived];
       _saveState();
     });
   }
@@ -286,14 +345,14 @@ class _TasksScreenState extends State<TasksScreen>
       // Remove from old tier
       final oldList = _tasksByTier[oldTier]!;
       oldList.remove(task);
-      for (int i = 0; i < oldList.length; i++) {
-        oldList[i].rank = i + 1;
-      }
+      _reindexTierRanks(oldTier);
+
       // Add to new tier as pending
       task.tier = newTier;
       task.isCompleted = false;
       final newList = _tasksByTier[newTier]!;
-      task.rank = newList.length + 1;
+      final newActive = newList.where((t) => !t.isArchived).toList();
+      task.rank = newActive.length + 1;
       newList.add(task);
       _saveState();
     });
@@ -350,13 +409,47 @@ class _TasksScreenState extends State<TasksScreen>
     }
   }
 
+  List<TierTask> get _allArchivedTasks {
+    final archived = <TierTask>[];
+    for (final tier in TierCategory.values) {
+      archived.addAll((_tasksByTier[tier] ?? []).where((t) => t.isArchived));
+    }
+    return archived;
+  }
+
+  void _unarchiveTask(TierTask task) {
+    setState(() {
+      task.isArchived = false;
+      final active = (_tasksByTier[task.tier] ?? [])
+          .where((t) => !t.isArchived && t.id != task.id)
+          .toList();
+      task.rank = active.length + 1;
+      _saveState();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('"${task.title}" restored to ${task.tier.label}.'),
+      ),
+    );
+  }
+
+  void _showArchiveSheet() {
+    showArchiveSheet(
+      context: context,
+      getArchivedTasks: () => _allArchivedTasks,
+      onRestore: _unarchiveTask,
+      onDelete: _deleteTask,
+      onOpenDetails: _openHabitDetails,
+    );
+  }
+
   void _showThresholds() {
     showThresholdSheet(
       context: context,
       thresholds: _activeThresholds,
       taskCounts: {
         for (final tier in TierCategory.values)
-          tier: (_tasksByTier[tier] ?? []).length,
+          tier: (_tasksByTier[tier] ?? []).where((t) => !t.isArchived).length,
       },
       onChanged: _setThreshold,
     );
@@ -419,11 +512,18 @@ class _TasksScreenState extends State<TasksScreen>
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Add task',
+            onPressed: _showAddTaskDialog,
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {
                 case 'theme':
                   widget.onToggleTheme();
+                case 'archive':
+                  _showArchiveSheet();
                 case 'thresholds':
                   _showThresholds();
                 case 'import':
@@ -445,6 +545,17 @@ class _TasksScreenState extends State<TasksScreen>
                     ),
                     const SizedBox(width: 12),
                     Text(widget.isDarkMode ? 'Light mode' : 'Dark mode'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'archive',
+                child: Row(
+                  children: [
+                    Icon(Icons.archive_outlined, size: 20),
+                    SizedBox(width: 12),
+                    Text('Archive'),
                   ],
                 ),
               ),
@@ -493,16 +604,11 @@ class _TasksScreenState extends State<TasksScreen>
           _buildAllActive(),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddTaskDialog,
-        tooltip: 'Add task',
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
   Widget _buildTierList(TierCategory tier) {
-    final list = _tasksByTier[tier] ?? [];
+    final list = (_tasksByTier[tier] ?? []).where((t) => !t.isArchived).toList();
     final threshold =
         _activeThresholds[tier] ?? TaskStorageData.defaultThreshold;
 
@@ -545,7 +651,7 @@ class _TasksScreenState extends State<TasksScreen>
     for (final tier in TierCategory.values) {
       final threshold = _thresholdFor(tier);
       final active = (_tasksByTier[tier] ?? [])
-          .where((t) => t.rank <= threshold)
+          .where((t) => !t.isArchived && t.rank <= threshold)
           .toList();
       if (active.isEmpty) continue;
 

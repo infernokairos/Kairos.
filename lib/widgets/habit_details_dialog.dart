@@ -59,12 +59,191 @@ class _HabitDetailsDialogState extends State<_HabitDetailsDialog> {
     });
   }
 
+  void _showSetTargetDialog(BuildContext context) {
+    final controller = TextEditingController(
+      text: widget.task.totalSittings > 0 ? '${widget.task.totalSittings}' : '',
+    );
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Set Target Sittings'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Total Sittings',
+            hintText: 'e.g. 25',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (val) {
+            final n = int.tryParse(val.trim());
+            if (n != null && n >= 0) {
+              setState(() {
+                widget.task.totalSittings = n;
+                widget.onUpdate();
+              });
+            }
+            Navigator.pop(context);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final n = int.tryParse(controller.text.trim());
+              if (n != null && n >= 0) {
+                setState(() {
+                  widget.task.totalSittings = n;
+                  widget.onUpdate();
+                });
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomSittings(
+    BuildContext context,
+    ThemeData theme,
+    Color tierColor,
+  ) {
+    final task = widget.task;
+    final current = task.currentSittings;
+    final total = task.totalSittings;
+    final isTargetSet = total > 0;
+    final progress = isTargetSet ? (current / total).clamp(0.0, 1.0) : 0.0;
+    final percent = isTargetSet ? ((current / total) * 100).toInt() : 0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (isTargetSet) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 4,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(tierColor),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 16, color: tierColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      isTargetSet
+                          ? '$current / $total Sittings'
+                          : '$current ${current == 1 ? 'Sitting' : 'Sittings'} completed',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: tierColor,
+                      ),
+                    ),
+                    if (isTargetSet) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '($percent%)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isTargetSet)
+                  IconButton(
+                    icon: const Icon(Icons.remove, size: 14),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
+                    ),
+                    tooltip: 'Decrease target sittings',
+                    onPressed: () {
+                      setState(() {
+                        widget.task.totalSittings = total - 1;
+                        widget.onUpdate();
+                      });
+                    },
+                  ),
+                InkWell(
+                  onTap: () => _showSetTargetDialog(context),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
+                    ),
+                    child: Text(
+                      isTargetSet ? 'Goal: $total' : 'Set Goal',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurfaceVariant,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add, size: 14),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  tooltip: 'Increase target sittings',
+                  onPressed: () {
+                    setState(() {
+                      widget.task.totalSittings = total + 1;
+                      widget.onUpdate();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final task = widget.task;
-    final completedDays = task.completedDates.length;
-
     final tierColor = task.tier.color;
 
     return Dialog(
@@ -149,33 +328,10 @@ class _HabitDetailsDialogState extends State<_HabitDetailsDialog> {
               ),
               const SizedBox(height: 6),
               _buildCalendarGrid(context, theme, tierColor),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
 
-              // Bottom count: Number of days completed
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: tierColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check_circle_outline, size: 16, color: tierColor),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$completedDays ${completedDays == 1 ? 'day' : 'days'} completed',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: tierColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              // Bottom Sittings Bar Analysis & Goal Stepper (down, zero bloat, no repetition)
+              _buildBottomSittings(context, theme, tierColor),
             ],
           ),
         ),

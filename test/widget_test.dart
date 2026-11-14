@@ -182,7 +182,7 @@ void main() {
       // Tap a task to open the calendar popup
       await tester.tap(find.text('Critical Server Hotfix'));
       await tester.pumpAndSettle();
-      expect(find.text('0 days completed'), findsOneWidget);
+      expect(find.text('0 Sittings completed'), findsOneWidget);
       await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
 
@@ -192,14 +192,14 @@ void main() {
       expect(find.text('Critical Server Hotfix'), findsOneWidget);
       expect(find.text('Payment Gateway Integration'), findsOneWidget);
 
-      // Switch back to S tab and add a task using FAB
+      // Switch back to S tab and add a task using top-right add button
       await tester.tap(find.text('S'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(FloatingActionButton));
+      await tester.tap(find.byIcon(Icons.add));
       await tester.pumpAndSettle();
 
       expect(find.text('Add Task'), findsOneWidget);
-      await tester.enterText(find.byType(TextField), 'Unit Test Instant Task');
+      await tester.enterText(find.byType(TextField).first, 'Unit Test Instant Task');
       await tester.tap(find.widgetWithText(FilledButton, 'Add'));
       await tester.pumpAndSettle();
       expect(find.text('Unit Test Instant Task'), findsOneWidget);
@@ -394,6 +394,161 @@ void main() {
       expect(saved.tasks[TierCategory.s]![0].completedDates, {yesterdayKey, todayKey});
       expect(saved.tasks[TierCategory.s]![1].isCompleted, isFalse);
       expect(saved.tasks[TierCategory.s]![1].completedDates, {yesterdayKey});
+    }, timeout: const Timeout(Duration(seconds: 15)));
+
+    testWidgets('Habit details dialog allows setting and increasing total sittings with bar analysis', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'kairos_tasks_data_json': json.encode({
+          'activeThresholds': {'s': 2, 'a': 0, 'b': 0},
+          'tasks': {
+            's': [
+              {
+                'id': 's1',
+                'title': 'Solid Works',
+                'rank': 1,
+                'isCompleted': false,
+                'totalSittings': 0,
+              },
+            ],
+            'a': [],
+            'b': [],
+          }
+        })
+      });
+
+      await pumpApp(tester);
+      expect(find.text('Solid Works'), findsOneWidget);
+
+      // Open habit tracker details
+      await tester.tap(find.text('Solid Works'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('0 Sittings completed'), findsOneWidget);
+
+      // Increase total sittings via + button
+      await tester.tap(find.byTooltip('Increase target sittings'));
+      await tester.pumpAndSettle();
+      expect(find.text('Goal: 1'), findsOneWidget);
+      expect(find.text('0 / 1 Sittings'), findsOneWidget);
+
+      // Open set goal dialog and set target to 10
+      await tester.tap(find.text('Goal: 1'));
+      await tester.pumpAndSettle();
+      expect(find.text('Set Target Sittings'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), '10');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Goal: 10'), findsOneWidget);
+      expect(find.text('0 / 10 Sittings'), findsOneWidget);
+      expect(find.text('(0%)'), findsOneWidget);
+
+      // Toggle today's date in calendar to complete 1 session
+      final now = DateTime.now();
+      await tester.tap(find.text('${now.day}').last);
+      await tester.pumpAndSettle();
+
+      // Bar analysis updates to 1 / 10 Sittings and (10%)
+      expect(find.text('1 / 10 Sittings'), findsOneWidget);
+      expect(find.text('(10%)'), findsOneWidget);
+
+      // Close dialog
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      // TaskTile subtitle displays sittings
+      expect(find.text('1/10 Sittings'), findsOneWidget);
+
+      // Verify persisted in storage
+      final saved = await TaskStorage.loadInitialData();
+      final task = saved.tasks[TierCategory.s]!.first;
+      expect(task.totalSittings, 10);
+      expect(task.currentSittings, 1);
+    }, timeout: const Timeout(Duration(seconds: 15)));
+
+    testWidgets('Task auto-archives when total sittings target reached, viewable via 3-dots Archive menu and restorable', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'kairos_tasks_data_json': '''
+{
+  "activeThresholds": {"s": 2, "a": 2, "b": 2},
+  "tasks": {
+    "s": [
+      {
+        "id": "task_target",
+        "title": "Thermodynamics",
+        "rank": 1,
+        "isCompleted": false,
+        "totalSittings": 1,
+        "completedDates": []
+      }
+    ],
+    "a": [],
+    "b": []
+  }
+}
+'''
+      });
+
+      await tester.pumpWidget(const TaskPlannerApp());
+      await tester.pumpAndSettle();
+
+      // Switch to Loop tab
+      await tester.tap(find.text('Loop'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Thermodynamics'), findsOneWidget);
+
+      // Complete the task (reaching 1/1 sitting)
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pumpAndSettle();
+
+      // Task is auto-archived and removed from Loop tab
+      expect(find.text('No active tasks'), findsOneWidget);
+
+      // Verify SnackBar notification
+      expect(
+        find.text('"Thermodynamics" completed all sittings and moved to Archive.'),
+        findsOneWidget,
+      );
+
+      // Open 3-dots settings menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Archive'), findsOneWidget);
+
+      // Tap 'Archive' menu item
+      await tester.tap(find.text('Archive'));
+      await tester.pumpAndSettle();
+
+      // Archive sheet is open
+      expect(find.text('Archive'), findsOneWidget);
+      expect(find.text('1 task completed'), findsOneWidget);
+      expect(find.text('Thermodynamics'), findsOneWidget);
+      expect(find.text('1 / 1 Sittings completed'), findsOneWidget);
+
+      // Tap restore icon
+      await tester.tap(find.byIcon(Icons.unarchive_outlined));
+      await tester.pumpAndSettle();
+
+      // Sheet now shows empty archive
+      expect(find.text('No archived tasks'), findsOneWidget);
+
+      // Dismiss bottom sheet by tapping outside / dragging down / pressing escape / popping
+      tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      // Switch to S tab
+      await tester.tap(find.text('S'));
+      await tester.pumpAndSettle();
+
+      // Task is restored to active S tier list
+      expect(find.text('Thermodynamics'), findsOneWidget);
+
+      final saved = await TaskStorage.loadInitialData();
+      final restoredTask = saved.tasks[TierCategory.s]!.first;
+      expect(restoredTask.isArchived, isFalse);
     }, timeout: const Timeout(Duration(seconds: 15)));
   });
 }

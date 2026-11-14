@@ -278,7 +278,15 @@ class _TaskTileState extends State<TaskTile> {
                     ),
                   ),
                 )
-              : null,
+              : (widget.task.totalSittings > 0
+                  ? Text(
+                      '${widget.task.currentSittings}/${widget.task.totalSittings} Sittings',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  : null),
           onLongPress: () => _showContextMenu(context),
           trailing: widget.showDragHandle
               ? ReorderableDragStartListener(

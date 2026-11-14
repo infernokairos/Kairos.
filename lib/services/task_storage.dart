@@ -122,12 +122,14 @@ class TaskStorage {
               );
             }
           }
-          // Sort by rank and re-index 1..N
-          list.sort((a, b) => a.rank.compareTo(b.rank));
-          for (int i = 0; i < list.length; i++) {
-            list[i].rank = i + 1;
+          // Active tasks sorted by rank and re-indexed 1..N
+          final active = list.where((t) => !t.isArchived).toList()
+            ..sort((a, b) => a.rank.compareTo(b.rank));
+          for (int i = 0; i < active.length; i++) {
+            active[i].rank = i + 1;
           }
-          result[tier] = list;
+          final archived = list.where((t) => t.isArchived).toList();
+          result[tier] = [...active, ...archived];
         }
       }
     }
