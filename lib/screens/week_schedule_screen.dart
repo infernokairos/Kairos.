@@ -6,7 +6,9 @@ import '../models/schedule_slot.dart';
 import '../models/sleep_schedule.dart';
 import '../models/tier_task.dart';
 import '../models/week_targets.dart';
+import '../services/task_storage.dart';
 import '../widgets/calendar_settings_dialog.dart';
+import '../widgets/sleep_settings_dialog.dart';
 
 class WeekScheduleScreen extends StatefulWidget {
   final List<ScheduleSlot> initialSchedule;
@@ -171,30 +173,54 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
     );
   }
 
-  // --- Settings Dialog ---
+  // --- Settings & Menu Actions ---
 
-  void _showSettingsDialog() {
-    showCalendarSettingsDialog(
+  void _toggleTimeFormat() {
+    setState(() {
+      _is24Hour = !_is24Hour;
+    });
+    widget.onToggleTimeFormat?.call(_is24Hour);
+    TaskStorage.saveIs24Hour(_is24Hour);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _is24Hour ? 'Switched to 24-hour time' : 'Switched to 12-hour time',
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _showSleepSettingsDialog() {
+    showSleepSettingsDialog(
       context: context,
+      currentSchedule: _sleepSchedule,
       is24Hour: _is24Hour,
-      sleepSchedule: _sleepSchedule,
-      weekTargets: _weekTargets,
-      onSave: ({
-        required bool is24Hour,
-        required SleepSchedule sleepSchedule,
-        required WeekTargets weekTargets,
-      }) {
+      onSave: (newSchedule) {
         setState(() {
-          _is24Hour = is24Hour;
-          _sleepSchedule = sleepSchedule;
-          _weekTargets = weekTargets;
+          _sleepSchedule = newSchedule;
         });
-        widget.onToggleTimeFormat?.call(is24Hour);
-        widget.onUpdateSleepSchedule?.call(sleepSchedule);
-        widget.onUpdateWeekTargets?.call(weekTargets);
+        widget.onUpdateSleepSchedule?.call(newSchedule);
+        TaskStorage.saveSleepSchedule(newSchedule);
       },
     );
   }
+
+  void _showTargetRatiosDialog() {
+    showTargetRatiosDialog(
+      context: context,
+      weekTargets: _weekTargets,
+      onSave: (newTargets) {
+        setState(() {
+          _weekTargets = newTargets;
+        });
+        widget.onUpdateWeekTargets?.call(newTargets);
+        TaskStorage.saveWeekTargets(newTargets);
+      },
+    );
+  }
+
+  void _showSettingsDialog() => _showTargetRatiosDialog();
 
   // --- Waking Focus Hours (Shortened Scroll, Zero Bloat) ---
 
@@ -927,7 +953,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 8),
 
           // Thin Material 3 multi-color progress track
           ClipRRect(
@@ -962,20 +988,20 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                     ),
             ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 8),
 
-          // Bottom Row: Clean, simple percentage pills grouped naturally on left
+          // Bottom Row: Modern, clean pill badges grouped on left
           Wrap(
-            spacing: 20,
-            runSpacing: 4,
+            spacing: 8,
+            runSpacing: 6,
             alignment: WrapAlignment.start,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _buildTierStatItem('S', const Color(0xFF1976D2), sMin, sPct),
-              _buildTierStatItem('A', const Color(0xFF2E7D32), aMin, aPct),
-              _buildTierStatItem('B', const Color(0xFFD97706), bMin, bPct),
+              _buildTierStatItem(theme, 'S', const Color(0xFF1976D2), sMin, sPct),
+              _buildTierStatItem(theme, 'A', const Color(0xFF2E7D32), aMin, aPct),
+              _buildTierStatItem(theme, 'B', const Color(0xFFD97706), bMin, bPct),
               if (otherMin > 0)
-                _buildTierStatItem('Other', const Color(0xFF616161), otherMin, otherPct),
+                _buildTierStatItem(theme, 'Other', const Color(0xFF616161), otherMin, otherPct),
             ],
           ),
         ],
@@ -983,30 +1009,80 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
     );
   }
 
-  Widget _buildTierStatItem(String label, Color color, int minutes, int pct) {
+  Widget _buildTierStatItem(
+    ThemeData theme,
+    String label,
+    Color color,
+    int minutes,
+    int pct,
+  ) {
     final hours = (minutes / 60.0).toStringAsFixed(1);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+    final isCompact = label.length <= 2;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: color.withValues(alpha: 0.22),
+          width: 0.8,
         ),
-        const SizedBox(width: 5),
-        Text(
-          '$label: ${hours}h ($pct%)',
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-            color: color,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: isCompact ? 16 : null,
+            height: 16,
+            padding: isCompact
+                ? EdgeInsets.zero
+                : const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isCompact ? 10 : 9,
+                fontWeight: FontWeight.w800,
+                height: 1.0,
+              ),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 6),
+          Text(
+            '${hours}h',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3.5),
+            child: Text(
+              '·',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.outlineVariant,
+              ),
+            ),
+          ),
+          Text(
+            '$pct%',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1046,16 +1122,16 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                 tooltip: 'Add Slot',
                 onPressed: () => _showSlotDialog(),
               ),
-              IconButton(
-                icon: const Icon(Icons.tune),
-                tooltip: 'Calendar Settings',
-                onPressed: _showSettingsDialog,
-              ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
+                constraints: const BoxConstraints(minWidth: 200, maxWidth: 300),
                 onSelected: (val) {
-                  if (val == 'settings') {
-                    _showSettingsDialog();
+                  if (val == 'time_format') {
+                    _toggleTimeFormat();
+                  } else if (val == 'sleep_settings') {
+                    _showSleepSettingsDialog();
+                  } else if (val == 'targets') {
+                    _showTargetRatiosDialog();
                   } else if (val == 'undo') {
                     _undo();
                   } else if (val == 'redo') {
@@ -1089,13 +1165,48 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                   }
                 },
                 itemBuilder: (ctx) => [
+                  PopupMenuItem(
+                    value: 'time_format',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.schedule, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _is24Hour ? '12-hour time (AM/PM)' : '24-hour time',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const PopupMenuItem(
-                    value: 'settings',
+                    value: 'sleep_settings',
+                    child: Row(
+                      children: [
+                        Icon(Icons.bedtime_outlined, size: 20, color: Color(0xFF818CF8)),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Sleep Schedule',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'targets',
                     child: Row(
                       children: [
                         Icon(Icons.tune, size: 20),
                         SizedBox(width: 12),
-                        Text('Calendar Settings'),
+                        Expanded(
+                          child: Text(
+                            'Loop Target Ratios',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1107,7 +1218,12 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                       children: [
                         Icon(Icons.undo, size: 20),
                         SizedBox(width: 12),
-                        Text('Undo (Ctrl+Z)'),
+                        Expanded(
+                          child: Text(
+                            'Undo (Ctrl+Z)',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1118,7 +1234,12 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                       children: [
                         Icon(Icons.redo, size: 20),
                         SizedBox(width: 12),
-                        Text('Redo (Ctrl+Shift+Z)'),
+                        Expanded(
+                          child: Text(
+                            'Redo (Ctrl+Shift+Z)',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1129,7 +1250,13 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                       children: [
                         Icon(Icons.delete_sweep_outlined, size: 20, color: Colors.redAccent),
                         SizedBox(width: 12),
-                        Text('Clear All Slots', style: TextStyle(color: Colors.redAccent)),
+                        Expanded(
+                          child: Text(
+                            'Clear All Slots',
+                            style: TextStyle(color: Colors.redAccent),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                   ),

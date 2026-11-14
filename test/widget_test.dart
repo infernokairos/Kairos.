@@ -719,7 +719,8 @@ void main() {
       expect(find.text('Gym'), findsOneWidget);
 
       // Check ratio bar includes 'Other'
-      expect(find.textContaining('Other: 2.0h'), findsOneWidget);
+      expect(find.text('Other'), findsWidgets);
+      expect(find.text('2.0h'), findsWidgets);
 
       // Verify saved in storage with null tier and 'Gym' title
       final saved = await TaskStorage.loadInitialData();
@@ -757,17 +758,12 @@ void main() {
       // In 24h mode, time gutter displays 08:00
       expect(find.text('08:00'), findsOneWidget);
 
-      // Switch back to 12-hour mode from the calendar settings dialog
-      await tester.tap(find.byTooltip('Calendar Settings'));
+      // Switch back to 12-hour mode from the calendar 3-dots menu
+      await tester.tap(find.byIcon(Icons.more_vert));
       await tester.pumpAndSettle();
 
-      expect(find.text('Calendar Settings'), findsOneWidget);
-      expect(find.text('12-Hour (AM/PM)'), findsOneWidget);
-
-      await tester.tap(find.text('12-Hour (AM/PM)'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      expect(find.text('12-hour time (AM/PM)'), findsOneWidget);
+      await tester.tap(find.text('12-hour time (AM/PM)'));
       await tester.pumpAndSettle();
 
       // In 12h mode, time gutter displays 8 AM
@@ -777,7 +773,7 @@ void main() {
       expect(is24, isFalse);
     }, timeout: const Timeout(Duration(seconds: 15)));
 
-    testWidgets('Weekly Loop calendar focuses waking hours without showing sleep blocks in grid, and configures sleep analysis & targets in settings', (tester) async {
+    testWidgets('Weekly Loop calendar focuses waking hours without showing sleep blocks in grid, and configures sleep analysis & targets in 3-dots options', (tester) async {
       await pumpApp(tester);
 
       // Open Weekly Loop view
@@ -787,16 +783,28 @@ void main() {
       // Verify Sleep Block is NOT rendered in the calendar grid
       expect(find.text('Sleep'), findsNothing);
 
-      // Tap Calendar Settings
-      await tester.tap(find.byTooltip('Calendar Settings'));
+      // Open Sleep Schedule from calendar 3-dots menu
+      await tester.tap(find.byIcon(Icons.more_vert));
       await tester.pumpAndSettle();
 
-      // Dialog opens: Calendar Settings
-      expect(find.text('Calendar Settings'), findsOneWidget);
-      expect(find.text('Focus & Sleep Hours'), findsOneWidget);
-      expect(find.textContaining('Sleep: 8.0h/day'), findsOneWidget);
-      expect(find.text('Focus mode (hide sleeping hours)'), findsOneWidget);
+      expect(find.text('Sleep Schedule'), findsOneWidget);
+      await tester.tap(find.text('Sleep Schedule'));
+      await tester.pumpAndSettle();
+
+      // Sleep dialog opens
+      expect(find.text('Sleep Schedule & Focus'), findsOneWidget);
+      expect(find.text('SLEEP ANALYSIS'), findsOneWidget);
+      expect(find.text('Focus Mode (Shorten Scroll)'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      // Tap Target Ratios chip on top bar
+      await tester.tap(find.textContaining('Target:'));
+      await tester.pumpAndSettle();
+
+      // Dialog opens: Loop Target Ratios
       expect(find.text('Loop Target Ratios'), findsOneWidget);
+      expect(find.text('Tier Percentages'), findsOneWidget);
 
       // Tweak Target Ratios to 50% S, 25% A, 25% B
       final sField = find.widgetWithText(TextField, '60');
