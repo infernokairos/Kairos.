@@ -793,13 +793,15 @@ void main() {
 
       // Sleep dialog opens
       expect(find.text('Sleep Schedule & Focus'), findsOneWidget);
-      expect(find.text('SLEEP ANALYSIS'), findsOneWidget);
+      expect(find.text('Sleep Analysis'), findsOneWidget);
       expect(find.text('Focus Mode (Shorten Scroll)'), findsOneWidget);
       await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
       await tester.pumpAndSettle();
 
-      // Tap Target Ratios chip on top bar
-      await tester.tap(find.textContaining('Target:'));
+      // Open Loop Target Ratios from 3-dots menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Loop Target Ratios'));
       await tester.pumpAndSettle();
 
       // Dialog opens: Loop Target Ratios
@@ -822,7 +824,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Weekly Loop'), findsOneWidget);
-      expect(find.textContaining('Target: 50% S • 25% A • 25% B'), findsOneWidget);
+      final savedTargets = await TaskStorage.loadWeekTargets();
+      expect(savedTargets.sPct, 50);
+      expect(savedTargets.bPct, 25);
 
       // Pop back to main screen
       tester.binding.handlePopRoute();

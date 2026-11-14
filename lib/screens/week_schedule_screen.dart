@@ -220,8 +220,6 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
     );
   }
 
-  void _showSettingsDialog() => _showTargetRatiosDialog();
-
   // --- Waking Focus Hours (Shortened Scroll, Zero Bloat) ---
 
   int get _activeStartHour {
@@ -272,40 +270,6 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
 
   int get _totalWeekMinutes {
     return _slots.fold(0, (sum, s) => sum + s.durationMinutes);
-  }
-
-  // --- Solid Colors & Accents (Solid, Not Transparent) ---
-
-  static Color _getSolidTierColor(TierCategory tier) {
-    switch (tier) {
-      case TierCategory.s:
-        return const Color(0xFF1976D2); // Solid Blue
-      case TierCategory.a:
-        return const Color(0xFF2E7D32); // Solid Forest Green
-      case TierCategory.b:
-        return const Color(0xFFD97706); // Solid Warm Amber
-    }
-  }
-
-  static Color _getSolidColor(ScheduleSlot slot) {
-    if (slot.isOther || slot.tier == null) {
-      return const Color(0xFF616161); // Solid Grey for Other
-    }
-    return _getSolidTierColor(slot.tier!);
-  }
-
-  static Color _getAccentBarColor(ScheduleSlot slot) {
-    if (slot.isOther || slot.tier == null) {
-      return const Color(0xFF424242); // Darker Grey accent bar
-    }
-    switch (slot.tier!) {
-      case TierCategory.s:
-        return const Color(0xFF0D47A1); // Deep Navy accent
-      case TierCategory.a:
-        return const Color(0xFF1B5E20); // Deep Forest Green accent
-      case TierCategory.b:
-        return const Color(0xFFB45309); // Deep Amber accent
-    }
   }
 
   // --- Slot Actions ---
@@ -573,7 +537,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
           final durationHours = durationMinutes / 60.0;
           final isDurationValid = durationMinutes > 0;
           final selectedCategoryCode = isOther ? 'other' : selectedTier.code.toLowerCase();
-          final activeColor = isOther ? const Color(0xFF616161) : _getSolidTierColor(selectedTier);
+          final activeColor = isOther ? const Color(0xFF9E9E9E) : selectedTier.color;
 
           return AlertDialog(
             title: Text(existingSlot == null ? 'Add Loop Slot' : 'Edit Loop Slot'),
@@ -620,7 +584,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                             'S',
                             style: TextStyle(
                               color: !isOther && selectedTier == TierCategory.s
-                                  ? const Color(0xFF1976D2)
+                                  ? TierCategory.s.color
                                   : null,
                               fontWeight: FontWeight.bold,
                             ),
@@ -632,7 +596,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                             'A',
                             style: TextStyle(
                               color: !isOther && selectedTier == TierCategory.a
-                                  ? const Color(0xFF2E7D32)
+                                  ? TierCategory.a.color
                                   : null,
                               fontWeight: FontWeight.bold,
                             ),
@@ -644,7 +608,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                             'B',
                             style: TextStyle(
                               color: !isOther && selectedTier == TierCategory.b
-                                  ? const Color(0xFFD97706)
+                                  ? TierCategory.b.color
                                   : null,
                               fontWeight: FontWeight.bold,
                             ),
@@ -655,7 +619,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                           label: Text(
                             'Other',
                             style: TextStyle(
-                              color: Color(0xFF616161),
+                              color: Color(0xFF9E9E9E),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -886,69 +850,28 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Top Row: Total hours + Target summary
+          // Top Row: Total hours
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    '${totalHoursStr}h',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: theme.colorScheme.onSurface,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    'total',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+              Text(
+                '${totalHoursStr}h',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
+                  letterSpacing: -0.3,
+                ),
               ),
-              InkWell(
-                onTap: _showSettingsDialog,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Target: ${_weekTargets.sPct}% S • ${_weekTargets.aPct}% A • ${_weekTargets.bPct}% B',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Icon(
-                        Icons.tune,
-                        size: 13,
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-                      ),
-                    ],
-                  ),
+              const SizedBox(width: 5),
+              Text(
+                'total',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -967,22 +890,22 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                         if (sMin > 0)
                           Expanded(
                             flex: sMin,
-                            child: Container(color: const Color(0xFF1976D2)),
+                            child: Container(color: TierCategory.s.color),
                           ),
                         if (aMin > 0)
                           Expanded(
                             flex: aMin,
-                            child: Container(color: const Color(0xFF2E7D32)),
+                            child: Container(color: TierCategory.a.color),
                           ),
                         if (bMin > 0)
                           Expanded(
                             flex: bMin,
-                            child: Container(color: const Color(0xFFD97706)),
+                            child: Container(color: TierCategory.b.color),
                           ),
                         if (otherMin > 0)
                           Expanded(
                             flex: otherMin,
-                            child: Container(color: const Color(0xFF616161)),
+                            child: Container(color: const Color(0xFF9E9E9E)),
                           ),
                       ],
                     ),
@@ -997,11 +920,11 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
             alignment: WrapAlignment.start,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _buildTierStatItem(theme, 'S', const Color(0xFF1976D2), sMin, sPct),
-              _buildTierStatItem(theme, 'A', const Color(0xFF2E7D32), aMin, aPct),
-              _buildTierStatItem(theme, 'B', const Color(0xFFD97706), bMin, bPct),
+              _buildTierStatItem(theme, 'S', TierCategory.s.color, sMin, sPct),
+              _buildTierStatItem(theme, 'A', TierCategory.a.color, aMin, aPct),
+              _buildTierStatItem(theme, 'B', TierCategory.b.color, bMin, bPct),
               if (otherMin > 0)
-                _buildTierStatItem(theme, 'Other', const Color(0xFF616161), otherMin, otherPct),
+                _buildTierStatItem(theme, 'Other', const Color(0xFF9E9E9E), otherMin, otherPct),
             ],
           ),
         ],
@@ -1021,10 +944,10 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: color.withValues(alpha: 0.22),
+          color: theme.colorScheme.outlineVariant,
           width: 0.8,
         ),
       ),
@@ -1516,6 +1439,17 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
         ? '${durationHours.toInt()}h'
         : '${durationHours.toStringAsFixed(1)}h';
 
+    // Contrast text colors on solid tier background
+    final isYellowAmber = tierColor == TierCategory.b.color;
+    final textColor = isYellowAmber ? Colors.black87 : Colors.white;
+    final subtextColor = isYellowAmber
+        ? Colors.black.withValues(alpha: 0.65)
+        : Colors.white.withValues(alpha: 0.88);
+    final badgeBg = isYellowAmber
+        ? Colors.black.withValues(alpha: 0.12)
+        : Colors.black.withValues(alpha: 0.22);
+    final badgeTextColor = textColor;
+
     return Positioned(
       top: top + 1.5,
       left: 2.5,
@@ -1528,22 +1462,29 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
           borderRadius: BorderRadius.circular(8),
           child: Container(
             decoration: BoxDecoration(
-              color: tierColor.withValues(alpha: isDark ? 0.22 : 0.16),
+              color: tierColor, // 100% solid fill
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: tierColor.withValues(alpha: isDark ? 0.45 : 0.35),
+                color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.15),
                 width: 1.0,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(7),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Left accent color bar in pure tier color
+                  // Left accent color bar
                   Container(
                     width: 3.5,
-                    color: tierColor,
+                    color: Colors.black.withValues(alpha: 0.18),
                   ),
                   // Content
                   Expanded(
@@ -1559,7 +1500,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                     style: TextStyle(
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w700,
-                                      color: theme.colorScheme.onSurface,
+                                      color: textColor,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
@@ -1570,7 +1511,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                       style: TextStyle(
                                         fontSize: 9.5,
                                         fontWeight: FontWeight.w500,
-                                        color: theme.colorScheme.onSurfaceVariant,
+                                        color: subtextColor,
                                       ),
                                     ),
                                   ),
@@ -1593,7 +1534,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                           style: TextStyle(
                                             fontSize: 11.5,
                                             fontWeight: FontWeight.w700,
-                                            color: theme.colorScheme.onSurface,
+                                            color: textColor,
                                             letterSpacing: 0.1,
                                           ),
                                         ),
@@ -1607,9 +1548,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                             vertical: 1.0,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: tierColor.withValues(
-                                              alpha: isDark ? 0.28 : 0.20,
-                                            ),
+                                            color: badgeBg,
                                             borderRadius:
                                                 BorderRadius.circular(4),
                                           ),
@@ -1618,9 +1557,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                             style: TextStyle(
                                               fontSize: 9.5,
                                               fontWeight: FontWeight.w700,
-                                              color: isDark
-                                                  ? theme.colorScheme.onSurface
-                                                  : tierColor,
+                                              color: badgeTextColor,
                                             ),
                                           ),
                                         ),
@@ -1634,7 +1571,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w500,
-                                      color: theme.colorScheme.onSurfaceVariant,
+                                      color: subtextColor,
                                     ),
                                   ),
                                 ],

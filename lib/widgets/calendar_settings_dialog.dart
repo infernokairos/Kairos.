@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/sleep_schedule.dart';
+import '../models/tier_task.dart';
 import '../models/week_targets.dart';
 
 void showTargetRatiosDialog({
@@ -204,7 +205,7 @@ class _TargetRatiosDialogState extends State<_TargetRatiosDialog> {
               children: [
                 _buildRatioTile(
                   letter: 'S',
-                  badgeColor: const Color(0xFF1976D2),
+                  badgeColor: TierCategory.s.color,
                   controller: _sController,
                   onChanged: (v) {
                     setState(() => _targetS = int.tryParse(v.trim()) ?? 0);
@@ -213,7 +214,7 @@ class _TargetRatiosDialogState extends State<_TargetRatiosDialog> {
                 const SizedBox(width: 8),
                 _buildRatioTile(
                   letter: 'A',
-                  badgeColor: const Color(0xFF2E7D32),
+                  badgeColor: TierCategory.a.color,
                   controller: _aController,
                   onChanged: (v) {
                     setState(() => _targetA = int.tryParse(v.trim()) ?? 0);
@@ -222,7 +223,7 @@ class _TargetRatiosDialogState extends State<_TargetRatiosDialog> {
                 const SizedBox(width: 8),
                 _buildRatioTile(
                   letter: 'B',
-                  badgeColor: const Color(0xFFD97706),
+                  badgeColor: TierCategory.b.color,
                   controller: _bController,
                   onChanged: (v) {
                     setState(() => _targetB = int.tryParse(v.trim()) ?? 0);
