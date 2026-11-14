@@ -6,45 +6,101 @@ import '../models/tier_task.dart';
 import 'file_helper.dart';
 
 class TaskStorageData {
+  static const int defaultThreshold = 2;
+  static const int minThreshold = 0;
+  static const int maxThreshold = 50;
+
   final Map<TierCategory, List<TierTask>> tasks;
-  final int activeThreshold;
+  final Map<TierCategory, int> activeThresholds;
 
   const TaskStorageData({
     required this.tasks,
-    required this.activeThreshold,
+    required this.activeThresholds,
   });
+
+  int thresholdFor(TierCategory tier) =>
+      activeThresholds[tier] ?? defaultThreshold;
+
+  static Map<TierCategory, int> defaultThresholds([
+    int value = defaultThreshold,
+  ]) {
+    final clamped = value.clamp(minThreshold, maxThreshold);
+    return {
+      for (final tier in TierCategory.values) tier: clamped,
+    };
+  }
 }
 
 class TaskStorage {
   static const String _prefKey = 'kairos_tasks_data_json';
 
-  /// Serializes tasks and threshold to a formatted JSON string
+  /// Serializes tasks and per-tier thresholds to a formatted JSON string
   static String serialize(
     Map<TierCategory, List<TierTask>> tasksByTier,
-    int activeThreshold,
+    Map<TierCategory, int> activeThresholds,
   ) {
+    final Map<String, int> thresholdsMap = {};
     final Map<String, dynamic> tasksMap = {};
+
     for (final tier in TierCategory.values) {
+      final key = tier.code.toLowerCase();
+      final threshold = (activeThresholds[tier] ?? TaskStorageData.defaultThreshold)
+          .clamp(TaskStorageData.minThreshold, TaskStorageData.maxThreshold);
+      thresholdsMap[key] = threshold;
+
       final list = tasksByTier[tier] ?? [];
-      tasksMap[tier.code.toLowerCase()] = list.map((t) => t.toJson()).toList();
+      tasksMap[key] = list.map((t) => t.toJson()).toList();
     }
 
     final data = {
-      'activeThreshold': activeThreshold,
+      'activeThresholds': thresholdsMap,
       'tasks': tasksMap,
     };
 
     return const JsonEncoder.withIndent('  ').convert(data);
   }
 
-  /// Deserializes a JSON string into tasks and active threshold
+  static void _applyThresholdMap(
+    dynamic rawMap,
+    Map<TierCategory, int> thresholds,
+  ) {
+    if (rawMap is! Map) return;
+    for (final entry in rawMap.entries) {
+      final key = entry.key.toString().toLowerCase();
+      for (final tier in TierCategory.values) {
+        if (tier.code.toLowerCase() == key && entry.value is num) {
+          thresholds[tier] = (entry.value as num).toInt().clamp(
+                TaskStorageData.minThreshold,
+                TaskStorageData.maxThreshold,
+              );
+          break;
+        }
+      }
+    }
+  }
+
+  /// Deserializes a JSON string into tasks and per-tier active thresholds.
+  /// Supports both per-tier maps (`activeThresholds`) and legacy scalar
+  /// (`activeThreshold`) export formats.
   static TaskStorageData deserialize(String jsonStr) {
     final dynamic decoded = json.decode(jsonStr);
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Root of JSON must be an object');
     }
 
-    final int threshold = (decoded['activeThreshold'] as num?)?.toInt() ?? 2;
+    final dynamic rawLegacyThreshold = decoded['activeThreshold'];
+    final int fallbackThreshold = rawLegacyThreshold is num
+        ? rawLegacyThreshold.toInt().clamp(
+              TaskStorageData.minThreshold,
+              TaskStorageData.maxThreshold,
+            )
+        : TaskStorageData.defaultThreshold;
+
+    final Map<TierCategory, int> thresholds =
+        TaskStorageData.defaultThresholds(fallbackThreshold);
+    _applyThresholdMap(rawLegacyThreshold, thresholds);
+    _applyThresholdMap(decoded['activeThresholds'], thresholds);
+
     final dynamic rawTasks = decoded['tasks'];
 
     final Map<TierCategory, List<TierTask>> result = {
@@ -61,7 +117,9 @@ class TaskStorage {
           final list = <TierTask>[];
           for (final item in rawList) {
             if (item is Map<String, dynamic>) {
-              list.add(TierTask.fromJson(item, tier));
+              list.add(
+                TierTask.fromJson(item, tier, fallbackRank: list.length + 1),
+              );
             }
           }
           // Sort by rank and re-index 1..N
@@ -76,18 +134,18 @@ class TaskStorage {
 
     return TaskStorageData(
       tasks: result,
-      activeThreshold: threshold.clamp(1, 10),
+      activeThresholds: thresholds,
     );
   }
 
   /// Automatically persists the current state to local storage
   static Future<void> saveToLocalStorage(
     Map<TierCategory, List<TierTask>> tasksByTier,
-    int activeThreshold,
+    Map<TierCategory, int> activeThresholds,
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonStr = serialize(tasksByTier, activeThreshold);
+      final jsonStr = serialize(tasksByTier, activeThresholds);
       await prefs.setString(_prefKey, jsonStr);
     } catch (_) {
       // Non-fatal if storage fails
@@ -115,7 +173,7 @@ class TaskStorage {
 
     // 3. Fallback to default hardcoded seed
     return TaskStorageData(
-      activeThreshold: 2,
+      activeThresholds: TaskStorageData.defaultThresholds(),
       tasks: {
         TierCategory.s: [
           TierTask(id: 's1', title: 'Critical Server Hotfix', tier: TierCategory.s, rank: 1),
@@ -139,9 +197,9 @@ class TaskStorage {
   /// Exports tasks to a JSON file via file download/picker
   static Future<bool> exportJson(
     Map<TierCategory, List<TierTask>> tasksByTier,
-    int activeThreshold,
+    Map<TierCategory, int> activeThresholds,
   ) async {
-    final jsonStr = serialize(tasksByTier, activeThreshold);
+    final jsonStr = serialize(tasksByTier, activeThresholds);
     return await PlatformFileHelper.downloadJson('tasks.json', jsonStr);
   }
 
@@ -152,7 +210,7 @@ class TaskStorage {
 
     final data = deserialize(content);
     // Save imported data to local storage immediately
-    await saveToLocalStorage(data.tasks, data.activeThreshold);
+    await saveToLocalStorage(data.tasks, data.activeThresholds);
     return data;
   }
 

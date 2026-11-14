@@ -1,5 +1,9 @@
 {
-  "activeThreshold": 2,
+  "activeThresholds": {
+    "s": 2,
+    "a": 2,
+    "b": 2
+  },
   "tasks": {
     "s": [
       {
