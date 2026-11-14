@@ -84,70 +84,6 @@ class _SleepSettingsDialogState extends State<_SleepSettingsDialog> {
     }
   }
 
-  Widget _buildStatPill({
-    required ThemeData theme,
-    required String label,
-    required Color color,
-    required String hours,
-    required String pct,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.22), width: 0.8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  height: 1.0,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Row(
-                children: [
-                  Text(
-                    hours,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    pct,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -348,9 +284,12 @@ class _SleepSettingsDialogState extends State<_SleepSettingsDialog> {
               ),
               const SizedBox(height: 10),
 
-              // Material 3 Sleep Analysis Card (Zero Bloat, Single-Source Metrics)
+              // Material 3 Sleep Analysis Card (Clean, Expressive, Zero Clutter)
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest.withValues(
                     alpha: 0.35,
@@ -365,37 +304,139 @@ class _SleepSettingsDialogState extends State<_SleepSettingsDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const Text(
+                      'Sleep Analysis',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Metrics Row (Prominent, clean typography)
                     Row(
                       children: [
-                        const Expanded(
-                          child: Text(
-                            'Sleep Analysis',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    '${schedule.durationHours.toStringAsFixed(1)}h',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    '${schedule.sleepPercentOfTotal}%',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF818CF8),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Sleep',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        Flexible(
-                          child: Text(
-                            schedule.healthInsight,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: schedule.healthColor,
-                            ),
+                        Container(
+                          width: 1,
+                          height: 28,
+                          color: theme.colorScheme.outlineVariant.withValues(
+                            alpha: 0.25,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    '${schedule.dailyAwakeHours.toStringAsFixed(1)}h',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    '${schedule.awakePercentOfTotal}%',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Waking focus',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
 
                     // Material 3 Dual-Color Ratio Track
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
+                      borderRadius: BorderRadius.circular(3),
                       child: SizedBox(
-                        height: 4,
+                        height: 5,
                         child: Row(
                           children: [
                             Expanded(
@@ -415,27 +456,29 @@ class _SleepSettingsDialogState extends State<_SleepSettingsDialog> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
 
-                    // Stat Badges
+                    // Health Insight Row (Full width, zero truncation)
                     Row(
                       children: [
-                        _buildStatPill(
-                          theme: theme,
-                          label: 'Sleep',
-                          color: const Color(0xFF818CF8),
-                          hours:
-                              '${schedule.durationHours.toStringAsFixed(1)}h',
-                          pct: '${schedule.sleepPercentOfTotal}%',
+                        Icon(
+                          schedule.durationHours >= 7.0 &&
+                                  schedule.durationHours <= 9.0
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.info_outline_rounded,
+                          size: 14,
+                          color: schedule.healthColor,
                         ),
-                        const SizedBox(width: 8),
-                        _buildStatPill(
-                          theme: theme,
-                          label: 'Focus',
-                          color: theme.colorScheme.primary,
-                          hours:
-                              '${schedule.dailyAwakeHours.toStringAsFixed(1)}h',
-                          pct: '${schedule.awakePercentOfTotal}%',
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            schedule.healthInsight,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: schedule.healthColor,
+                            ),
+                          ),
                         ),
                       ],
                     ),
