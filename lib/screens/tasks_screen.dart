@@ -8,7 +8,6 @@ import '../models/week_targets.dart';
 import '../services/task_storage.dart';
 import '../widgets/archive_sheet.dart';
 import '../widgets/habit_details_dialog.dart';
-import '../widgets/sleep_settings_dialog.dart';
 import '../widgets/task_tile.dart';
 import '../widgets/threshold_sheet.dart';
 import 'week_schedule_screen.dart';
@@ -460,24 +459,6 @@ class _TasksScreenState extends State<TasksScreen>
     );
   }
 
-  void _showSleepSettings() {
-    showSleepSettingsDialog(
-      context: context,
-      currentSchedule: _sleepSchedule,
-      is24Hour: _is24Hour,
-      onSave: (newSchedule) {
-        setState(() {
-          _sleepSchedule = newSchedule;
-        });
-        TaskStorage.saveSleepSchedule(newSchedule);
-        _saveState();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sleep schedule saved')),
-        );
-      },
-    );
-  }
-
   void _openWeekScheduleView() {
     Navigator.push(
       context,
@@ -635,14 +616,13 @@ class _TasksScreenState extends State<TasksScreen>
             onPressed: _showAddTaskDialog,
           ),
           PopupMenuButton<String>(
+            constraints: const BoxConstraints(minWidth: 200, maxWidth: 300),
             onSelected: (value) {
               switch (value) {
                 case 'theme':
                   widget.onToggleTheme();
                 case 'time_format':
                   _toggleTimeFormat();
-                case 'sleep_settings':
-                  _showSleepSettings();
                 case 'archive':
                   _showArchiveSheet();
                 case 'thresholds':
@@ -665,7 +645,12 @@ class _TasksScreenState extends State<TasksScreen>
                       size: 20,
                     ),
                     const SizedBox(width: 12),
-                    Text(widget.isDarkMode ? 'Light mode' : 'Dark mode'),
+                    Expanded(
+                      child: Text(
+                        widget.isDarkMode ? 'Light mode' : 'Dark mode',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -676,18 +661,12 @@ class _TasksScreenState extends State<TasksScreen>
                   children: [
                     const Icon(Icons.schedule, size: 20),
                     const SizedBox(width: 12),
-                    Text(_is24Hour ? '12-hour time (AM/PM)' : '24-hour time'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'sleep_settings',
-                child: Row(
-                  children: [
-                    Icon(Icons.bedtime_outlined, size: 20, color: Color(0xFF818CF8)),
-                    SizedBox(width: 12),
-                    Text('Sleep Schedule'),
+                    Expanded(
+                      child: Text(
+                        _is24Hour ? '12-hour time (AM/PM)' : '24-hour time',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -698,7 +677,12 @@ class _TasksScreenState extends State<TasksScreen>
                   children: [
                     Icon(Icons.archive_outlined, size: 20),
                     SizedBox(width: 12),
-                    Text('Archive'),
+                    Expanded(
+                      child: Text(
+                        'Archive',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -709,7 +693,12 @@ class _TasksScreenState extends State<TasksScreen>
                   children: [
                     Icon(Icons.tune, size: 20),
                     SizedBox(width: 12),
-                    Text('Thresholds'),
+                    Expanded(
+                      child: Text(
+                        'Thresholds',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -720,7 +709,12 @@ class _TasksScreenState extends State<TasksScreen>
                   children: [
                     Icon(Icons.file_upload_outlined, size: 20),
                     SizedBox(width: 12),
-                    Text('Import'),
+                    Expanded(
+                      child: Text(
+                        'Import',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -730,7 +724,12 @@ class _TasksScreenState extends State<TasksScreen>
                   children: [
                     Icon(Icons.file_download_outlined, size: 20),
                     SizedBox(width: 12),
-                    Text('Export'),
+                    Expanded(
+                      child: Text(
+                        'Export',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),

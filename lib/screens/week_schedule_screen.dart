@@ -1508,8 +1508,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
     final relativeMinutes = slot.startMinutes - wakingStartMinutes;
     final top = _topPadding + (relativeMinutes * pxPerMinute);
     final height = max(24.0, slot.durationMinutes * pxPerMinute);
-    final solidColor = _getSolidColor(slot);
-    final accentBarColor = _getAccentBarColor(slot);
+    final tierColor = slot.color;
     final displayName = slot.displayName;
 
     final durationHours = slot.durationMinutes / 60.0;
@@ -1529,29 +1528,22 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
           borderRadius: BorderRadius.circular(8),
           child: Container(
             decoration: BoxDecoration(
-              color: solidColor, // 100% SOLID fill, not transparent
+              color: tierColor.withValues(alpha: isDark ? 0.22 : 0.16),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Colors.black.withValues(alpha: 0.20),
+                color: tierColor.withValues(alpha: isDark ? 0.45 : 0.35),
                 width: 1.0,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
-                  blurRadius: 3,
-                  offset: const Offset(0, 1),
-                ),
-              ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(7),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Left accent color bar
+                  // Left accent color bar in pure tier color
                   Container(
-                    width: 4.5,
-                    color: accentBarColor,
+                    width: 3.5,
+                    color: tierColor,
                   ),
                   // Content
                   Expanded(
@@ -1564,10 +1556,10 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                 children: [
                                   Text(
                                     displayName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                                      color: theme.colorScheme.onSurface,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
@@ -1578,7 +1570,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                       style: TextStyle(
                                         fontSize: 9.5,
                                         fontWeight: FontWeight.w500,
-                                        color: Colors.white.withValues(alpha: 0.90),
+                                        color: theme.colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                   ),
@@ -1598,11 +1590,11 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                         child: Text(
                                           displayName,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 11.5,
                                             fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                            letterSpacing: 0.2,
+                                            color: theme.colorScheme.onSurface,
+                                            letterSpacing: 0.1,
                                           ),
                                         ),
                                       ),
@@ -1611,20 +1603,24 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                         fit: BoxFit.scaleDown,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 4.0,
+                                            horizontal: 4.5,
                                             vertical: 1.0,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.black.withValues(alpha: 0.22),
+                                            color: tierColor.withValues(
+                                              alpha: isDark ? 0.28 : 0.20,
+                                            ),
                                             borderRadius:
                                                 BorderRadius.circular(4),
                                           ),
                                           child: Text(
                                             durationStr,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 9.5,
                                               fontWeight: FontWeight.w700,
-                                              color: Colors.white,
+                                              color: isDark
+                                                  ? theme.colorScheme.onSurface
+                                                  : tierColor,
                                             ),
                                           ),
                                         ),
@@ -1638,7 +1634,7 @@ class _WeekScheduleScreenState extends State<WeekScheduleScreen> {
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w500,
-                                      color: Colors.white.withValues(alpha: 0.90),
+                                      color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],

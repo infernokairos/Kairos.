@@ -828,17 +828,12 @@ void main() {
       tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
-      // Open 3-dots settings from main screen and check Sleep Schedule option
+      // Open 3-dots settings from main Kairos screen: verify Sleep Schedule is NOT shown
       await tester.tap(find.byIcon(Icons.more_vert));
       await tester.pumpAndSettle();
 
-      expect(find.text('Sleep Schedule'), findsOneWidget);
-      await tester.tap(find.text('Sleep Schedule'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Sleep Schedule & Focus'), findsOneWidget);
-      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
-      await tester.pumpAndSettle();
+      expect(find.text('Sleep Schedule'), findsNothing);
+      expect(find.text('Thresholds'), findsOneWidget);
     }, timeout: const Timeout(Duration(seconds: 15)));
   });
 }
