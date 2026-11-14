@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import '../models/schedule_slot.dart';
+import '../models/sleep_schedule.dart';
 import '../models/tier_task.dart';
+import '../models/week_targets.dart';
 import '../services/task_storage.dart';
 import '../widgets/archive_sheet.dart';
 import '../widgets/habit_details_dialog.dart';
+import '../widgets/sleep_settings_dialog.dart';
 import '../widgets/task_tile.dart';
 import '../widgets/threshold_sheet.dart';
+import 'week_schedule_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   final VoidCallback onToggleTheme;
@@ -37,6 +42,10 @@ class _TasksScreenState extends State<TasksScreen>
   };
   Map<TierCategory, int> _activeThresholds =
       TaskStorageData.defaultThresholds();
+  List<ScheduleSlot> _weeklySchedule = [];
+  SleepSchedule _sleepSchedule = const SleepSchedule();
+  WeekTargets _weekTargets = const WeekTargets();
+  bool _is24Hour = false;
 
   @override
   void initState() {
@@ -80,10 +89,23 @@ class _TasksScreenState extends State<TasksScreen>
 
   Future<void> _loadInitialData() async {
     final data = await TaskStorage.loadInitialData();
+    final is24 = await TaskStorage.loadIs24Hour();
+    final sleep = await TaskStorage.loadSleepSchedule();
+    final targets = await TaskStorage.loadWeekTargets();
     if (mounted) {
       setState(() {
         _tasksByTier = data.tasks;
         _activeThresholds = data.activeThresholds;
+        _weeklySchedule = data.weeklySchedule;
+        _sleepSchedule = data.sleepSchedule.startMinutes != (23 * 60)
+            ? data.sleepSchedule
+            : sleep;
+        _weekTargets = (data.weekTargets.sPct != 60 ||
+                data.weekTargets.aPct != 25 ||
+                data.weekTargets.bPct != 15)
+            ? data.weekTargets
+            : targets;
+        _is24Hour = is24;
         _checkDailyReset();
         _isLoading = false;
       });
@@ -91,7 +113,13 @@ class _TasksScreenState extends State<TasksScreen>
   }
 
   void _saveState() {
-    TaskStorage.saveToLocalStorage(_tasksByTier, _activeThresholds);
+    TaskStorage.saveToLocalStorage(
+      _tasksByTier,
+      _activeThresholds,
+      _weeklySchedule,
+      _sleepSchedule,
+      _weekTargets,
+    );
   }
 
   TierCategory get _currentSelectedTier =>
@@ -374,8 +402,13 @@ class _TasksScreenState extends State<TasksScreen>
   Future<void> _exportJson() async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final success =
-          await TaskStorage.exportJson(_tasksByTier, _activeThresholds);
+      final success = await TaskStorage.exportJson(
+        _tasksByTier,
+        _activeThresholds,
+        _weeklySchedule,
+        _sleepSchedule,
+        _weekTargets,
+      );
       if (success) {
         messenger.showSnackBar(
           const SnackBar(content: Text('Exported successfully')),
@@ -396,6 +429,9 @@ class _TasksScreenState extends State<TasksScreen>
         setState(() {
           _tasksByTier = imported.tasks;
           _activeThresholds = imported.activeThresholds;
+          _weeklySchedule = imported.weeklySchedule;
+          _sleepSchedule = imported.sleepSchedule;
+          _weekTargets = imported.weekTargets;
           _checkDailyReset();
         });
         messenger.showSnackBar(
@@ -407,6 +443,79 @@ class _TasksScreenState extends State<TasksScreen>
         SnackBar(content: Text('Import failed: $e')),
       );
     }
+  }
+
+  void _toggleTimeFormat() {
+    setState(() {
+      _is24Hour = !_is24Hour;
+    });
+    TaskStorage.saveIs24Hour(_is24Hour);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _is24Hour ? 'Switched to 24-hour time' : 'Switched to 12-hour time',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showSleepSettings() {
+    showSleepSettingsDialog(
+      context: context,
+      currentSchedule: _sleepSchedule,
+      is24Hour: _is24Hour,
+      onSave: (newSchedule) {
+        setState(() {
+          _sleepSchedule = newSchedule;
+        });
+        TaskStorage.saveSleepSchedule(newSchedule);
+        _saveState();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sleep schedule saved')),
+        );
+      },
+    );
+  }
+
+  void _openWeekScheduleView() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WeekScheduleScreen(
+          initialSchedule: _weeklySchedule,
+          is24Hour: _is24Hour,
+          sleepSchedule: _sleepSchedule,
+          weekTargets: _weekTargets,
+          onToggleTimeFormat: (val) {
+            setState(() {
+              _is24Hour = val;
+            });
+            TaskStorage.saveIs24Hour(_is24Hour);
+          },
+          onUpdateSleepSchedule: (val) {
+            setState(() {
+              _sleepSchedule = val;
+            });
+            TaskStorage.saveSleepSchedule(val);
+            _saveState();
+          },
+          onUpdateWeekTargets: (val) {
+            setState(() {
+              _weekTargets = val;
+            });
+            TaskStorage.saveWeekTargets(val);
+            _saveState();
+          },
+          onSave: (newSchedule) {
+            setState(() {
+              _weeklySchedule = newSchedule;
+            });
+            _saveState();
+          },
+        ),
+      ),
+    );
   }
 
   List<TierTask> get _allArchivedTasks {
@@ -462,10 +571,15 @@ class _TasksScreenState extends State<TasksScreen>
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     final monthName = months[now.month - 1];
-    final hour12 = now.hour == 0 ? 12 : (now.hour > 12 ? now.hour - 12 : now.hour);
     final minuteStr = now.minute.toString().padLeft(2, '0');
-    final amPm = now.hour >= 12 ? 'PM' : 'AM';
-    return '${now.day} $monthName $hour12:$minuteStr $amPm';
+    if (_is24Hour) {
+      final hourStr = now.hour.toString().padLeft(2, '0');
+      return '${now.day} $monthName $hourStr:$minuteStr';
+    } else {
+      final hour12 = now.hour == 0 ? 12 : (now.hour > 12 ? now.hour - 12 : now.hour);
+      final amPm = now.hour >= 12 ? 'PM' : 'AM';
+      return '${now.day} $monthName $hour12:$minuteStr $amPm';
+    }
   }
 
   // --- Build ---
@@ -483,18 +597,16 @@ class _TasksScreenState extends State<TasksScreen>
     return Scaffold(
       appBar: AppBar(
         title: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
           children: [
             const Text('Kairos'),
-            const SizedBox(width: 12),
-            Flexible(
+            const SizedBox(width: 10),
+            Expanded(
               child: Text(
                 _formattedNow(),
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.normal,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -513,6 +625,11 @@ class _TasksScreenState extends State<TasksScreen>
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.calendar_view_week_outlined),
+            tooltip: 'Weekly Loop Schedule',
+            onPressed: _openWeekScheduleView,
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Add task',
             onPressed: _showAddTaskDialog,
@@ -522,6 +639,10 @@ class _TasksScreenState extends State<TasksScreen>
               switch (value) {
                 case 'theme':
                   widget.onToggleTheme();
+                case 'time_format':
+                  _toggleTimeFormat();
+                case 'sleep_settings':
+                  _showSleepSettings();
                 case 'archive':
                   _showArchiveSheet();
                 case 'thresholds':
@@ -545,6 +666,28 @@ class _TasksScreenState extends State<TasksScreen>
                     ),
                     const SizedBox(width: 12),
                     Text(widget.isDarkMode ? 'Light mode' : 'Dark mode'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'time_format',
+                child: Row(
+                  children: [
+                    const Icon(Icons.schedule, size: 20),
+                    const SizedBox(width: 12),
+                    Text(_is24Hour ? '12-hour time (AM/PM)' : '24-hour time'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'sleep_settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.bedtime_outlined, size: 20, color: Color(0xFF818CF8)),
+                    SizedBox(width: 12),
+                    Text('Sleep Schedule'),
                   ],
                 ),
               ),

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:task_planner/main.dart';
+import 'package:task_planner/models/schedule_slot.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -149,6 +150,51 @@ void main() {
       expect(parsedSingular.thresholdFor(TierCategory.s), 1);
       expect(parsedSingular.thresholdFor(TierCategory.a), 5);
       expect(parsedSingular.thresholdFor(TierCategory.b), 2);
+    });
+
+    test('TaskStorage serialize and deserialize preserves weeklySchedule with S, A, B slots', () {
+      final tasks = {
+        TierCategory.s: <TierTask>[],
+        TierCategory.a: <TierTask>[],
+        TierCategory.b: <TierTask>[],
+      };
+      final thresholds = TaskStorageData.defaultThresholds(2);
+      final schedule = [
+        ScheduleSlot(
+          id: 'slot1',
+          dayOfWeek: 1,
+          startMinutes: 540, // 09:00
+          endMinutes: 720, // 12:00
+          tier: TierCategory.s,
+        ),
+        ScheduleSlot(
+          id: 'slot2',
+          dayOfWeek: 1,
+          startMinutes: 780, // 13:00
+          endMinutes: 900, // 15:00
+          tier: TierCategory.a,
+        ),
+        ScheduleSlot(
+          id: 'slot3',
+          dayOfWeek: 1,
+          startMinutes: 960, // 16:00
+          endMinutes: 1020, // 17:00
+          tier: TierCategory.b,
+        ),
+      ];
+
+      final jsonStr = TaskStorage.serialize(tasks, thresholds, schedule);
+      expect(jsonStr.contains('"weeklySchedule"'), isTrue);
+      expect(jsonStr.contains('"start": "09:00"'), isTrue);
+      expect(jsonStr.contains('"end": "12:00"'), isTrue);
+      expect(jsonStr.contains('"tier": "s"'), isTrue);
+
+      final deserialized = TaskStorage.deserialize(jsonStr);
+      expect(deserialized.weeklySchedule.length, 3);
+      expect(deserialized.weeklySchedule[0].tier, TierCategory.s);
+      expect(deserialized.weeklySchedule[0].durationMinutes, 180);
+      expect(deserialized.weeklySchedule[1].tier, TierCategory.a);
+      expect(deserialized.weeklySchedule[2].tier, TierCategory.b);
     });
   });
 
@@ -549,6 +595,242 @@ void main() {
       final saved = await TaskStorage.loadInitialData();
       final restoredTask = saved.tasks[TierCategory.s]!.first;
       expect(restoredTask.isArchived, isFalse);
+    }, timeout: const Timeout(Duration(seconds: 15)));
+
+    testWidgets('Weekly Loop calendar opens from top-right icon, starts week on Sunday, allows adding slots, and copying day to all days', (tester) async {
+      await pumpApp(tester);
+
+      // Verify the calendar button in top right
+      final calendarBtn = find.byTooltip('Weekly Loop Schedule');
+      expect(calendarBtn, findsOneWidget);
+
+      await tester.tap(calendarBtn);
+      await tester.pumpAndSettle();
+
+      // Screen opens: Weekly Loop
+      expect(find.text('Weekly Loop'), findsOneWidget);
+
+      // Verify 7 day headers with Sunday starting first
+      expect(find.text('Sun'), findsOneWidget);
+      expect(find.text('Mon'), findsOneWidget);
+      expect(find.text('Tue'), findsOneWidget);
+      expect(find.text('Thu'), findsOneWidget);
+      expect(find.text('Fri'), findsOneWidget);
+      expect(find.text('Sat'), findsOneWidget);
+
+      // Sunday header is to the left of Monday header
+      final sunX = tester.getTopLeft(find.text('Sun')).dx;
+      final monX = tester.getTopLeft(find.text('Mon')).dx;
+      expect(sunX, lessThan(monX));
+
+      // Add a slot via the top right '+' button
+      await tester.tap(find.byTooltip('Add Slot'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add Loop Slot'), findsOneWidget);
+
+      // Tap 'Save' to add the default 09:00-11:00 S slot on Sunday (first day)
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      // Verify Sunday shows 2.0h
+      expect(find.text('2.0h'), findsWidgets);
+
+      // Tap Sunday header to open copy menu
+      await tester.tap(find.text('Sun'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Copy to all days'), findsOneWidget);
+
+      // Tap 'Copy to all days'
+      await tester.tap(find.text('Copy to all days'));
+      await tester.pumpAndSettle();
+
+      // Total week time updates to 14.0h (2h * 7 days)
+      expect(find.text('14.0h'), findsWidgets);
+      expect(find.text('total'), findsOneWidget);
+
+      // Test Undo: restores back to 1 day (2.0h)
+      await tester.tap(find.byTooltip('Undo (Ctrl+Z)'));
+      await tester.pumpAndSettle();
+      expect(find.text('2.0h'), findsWidgets);
+
+      // Test Redo: reapplies copy to all days (14.0h)
+      await tester.tap(find.byTooltip('Redo (Ctrl+Shift+Z)'));
+      await tester.pumpAndSettle();
+      expect(find.text('14.0h'), findsWidgets);
+
+      // Test Clear Day confirmation dialog
+      await tester.tap(find.text('Sun'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear this day'));
+      await tester.pumpAndSettle();
+      expect(find.text('Clear Sunday?'), findsOneWidget);
+      // Cancel first
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('14.0h'), findsWidgets);
+
+      // Clear with confirmation
+      await tester.tap(find.text('Sun'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear this day'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Clear'));
+      await tester.pumpAndSettle();
+      expect(find.text('12.0h'), findsWidgets);
+
+      // Pop back to main tasks screen
+      tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kairos'), findsOneWidget);
+
+      // Verify saved in storage
+      final saved = await TaskStorage.loadInitialData();
+      expect(saved.weeklySchedule.length, 6);
+      expect(saved.weeklySchedule.every((s) => s.tier == TierCategory.s), isTrue);
+    }, timeout: const Timeout(Duration(seconds: 15)));
+
+    testWidgets('Weekly Loop calendar allows adding custom named Other slot with grey color and solid appearance', (tester) async {
+      await pumpApp(tester);
+
+      await tester.tap(find.byTooltip('Weekly Loop Schedule'));
+      await tester.pumpAndSettle();
+
+      // Add a slot
+      await tester.tap(find.byTooltip('Add Slot'));
+      await tester.pumpAndSettle();
+
+      // Select 'Other' category
+      await tester.tap(find.text('Other'));
+      await tester.pumpAndSettle();
+
+      // Enter custom name 'Gym'
+      expect(find.byType(TextField), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Gym');
+      await tester.pumpAndSettle();
+
+      // Tap Save
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      // Card with 'Gym' is rendered on Sunday
+      expect(find.text('Gym'), findsOneWidget);
+
+      // Check ratio bar includes 'Other'
+      expect(find.textContaining('Other: 2.0h'), findsOneWidget);
+
+      // Verify saved in storage with null tier and 'Gym' title
+      final saved = await TaskStorage.loadInitialData();
+      final otherSlot = saved.weeklySchedule.firstWhere((s) => s.title == 'Gym');
+      expect(otherSlot.isOther, isTrue);
+      expect(otherSlot.tier, isNull);
+      expect(otherSlot.title, 'Gym');
+      expect(otherSlot.displayName, 'Gym');
+      expect(otherSlot.color, const Color(0xFF9E9E9E));
+    }, timeout: const Timeout(Duration(seconds: 15)));
+
+    testWidgets('12/24 hour switching in 3-dots settings and weekly calendar view toggles format and persists', (tester) async {
+      await pumpApp(tester);
+
+      // Open 3-dots settings menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      expect(find.text('24-hour time'), findsOneWidget);
+
+      // Switch to 24-hour time
+      await tester.tap(find.text('24-hour time'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Switched to 24-hour time'), findsOneWidget);
+
+      // Verify preference saved in storage
+      var is24 = await TaskStorage.loadIs24Hour();
+      expect(is24, isTrue);
+
+      // Open Weekly Loop view
+      await tester.tap(find.byTooltip('Weekly Loop Schedule'));
+      await tester.pumpAndSettle();
+
+      // In 24h mode, time gutter displays 08:00
+      expect(find.text('08:00'), findsOneWidget);
+
+      // Switch back to 12-hour mode from the calendar settings dialog
+      await tester.tap(find.byTooltip('Calendar Settings'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Calendar Settings'), findsOneWidget);
+      expect(find.text('12-Hour (AM/PM)'), findsOneWidget);
+
+      await tester.tap(find.text('12-Hour (AM/PM)'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      // In 12h mode, time gutter displays 8 AM
+      expect(find.text('8 AM'), findsOneWidget);
+
+      is24 = await TaskStorage.loadIs24Hour();
+      expect(is24, isFalse);
+    }, timeout: const Timeout(Duration(seconds: 15)));
+
+    testWidgets('Weekly Loop calendar focuses waking hours without showing sleep blocks in grid, and configures sleep analysis & targets in settings', (tester) async {
+      await pumpApp(tester);
+
+      // Open Weekly Loop view
+      await tester.tap(find.byTooltip('Weekly Loop Schedule'));
+      await tester.pumpAndSettle();
+
+      // Verify Sleep Block is NOT rendered in the calendar grid
+      expect(find.text('Sleep'), findsNothing);
+
+      // Tap Calendar Settings
+      await tester.tap(find.byTooltip('Calendar Settings'));
+      await tester.pumpAndSettle();
+
+      // Dialog opens: Calendar Settings
+      expect(find.text('Calendar Settings'), findsOneWidget);
+      expect(find.text('Focus & Sleep Hours'), findsOneWidget);
+      expect(find.textContaining('Sleep: 8.0h/day'), findsOneWidget);
+      expect(find.text('Focus mode (hide sleeping hours)'), findsOneWidget);
+      expect(find.text('Loop Target Ratios'), findsOneWidget);
+
+      // Tweak Target Ratios to 50% S, 25% A, 25% B
+      final sField = find.widgetWithText(TextField, '60');
+      if (sField.evaluate().isNotEmpty) {
+        await tester.enterText(sField, '50');
+      }
+      final bField = find.widgetWithText(TextField, '15');
+      if (bField.evaluate().isNotEmpty) {
+        await tester.enterText(bField, '25');
+      }
+      await tester.pumpAndSettle();
+
+      // Tap 'Save'
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Weekly Loop'), findsOneWidget);
+      expect(find.textContaining('Target: 50% S • 25% A • 25% B'), findsOneWidget);
+
+      // Pop back to main screen
+      tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      // Open 3-dots settings from main screen and check Sleep Schedule option
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sleep Schedule'), findsOneWidget);
+      await tester.tap(find.text('Sleep Schedule'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sleep Schedule & Focus'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
     }, timeout: const Timeout(Duration(seconds: 15)));
   });
 }
